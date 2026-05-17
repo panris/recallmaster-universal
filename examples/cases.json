@@ -1,0 +1,16 @@
+[
+  {
+    "question": "该医疗保险的牙科报销上限是多少？是否包含根管治疗？",
+    "intents": ["报销额度", "牙科保障范围"],
+    "expectedIds": ["med_dental_limit"],
+    "filters": {},
+    "labelStatus": "HUMAN_VERIFIED"
+  },
+  {
+    "question": "如何配置负载均衡？高可用模式下心跳间隔是多少？",
+    "intents": ["负载均衡配置", "高可用参数"],
+    "expectedIds": ["tech_lb_config", "tech_ha_heartbeat"],
+    "filters": {},
+    "labelStatus": "HUMAN_VERIFIED"
+  }
+]

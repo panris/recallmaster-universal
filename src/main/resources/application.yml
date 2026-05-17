@@ -1,0 +1,57 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: recallmaster-universal
+  thymeleaf:
+    cache: false
+
+recallmaster:
+  default-top-k: 5
+  evaluator:
+    primary-judge: rule-based
+    secondary-judge: ""
+    base-url: ""
+    api-key: ""
+    concurrency: 5
+    strict-ground-truth: false
+    disagreement-threshold: 20
+  embedding:
+    provider: hash
+    model: hash-embedding-v1
+    base-url: ""
+    api-key: ""
+    dimensions: 256
+  databases:
+    - name: demo-memory
+      type: memory
+      enabled: true
+      dimension: 256
+      documents:
+        - id: med_dental_limit
+          text: "医疗保险牙科报销年度上限为 2000 元，包含洗牙、补牙和根管治疗。"
+          metadata:
+            source: demo-medical
+            topic: dental
+        - id: med_dental_exclusion
+          text: "美容牙齿贴面和非必要正畸不在基础医疗保险牙科保障范围内。"
+          metadata:
+            source: demo-medical
+            topic: dental
+        - id: tech_lb_config
+          text: "负载均衡需要配置 upstream 节点、健康检查路径和转发策略。"
+          metadata:
+            source: demo-tech
+            topic: lb
+        - id: tech_ha_heartbeat
+          text: "高可用模式默认心跳间隔为 3 秒，连续 3 次失败后触发主备切换。"
+          metadata:
+            source: demo-tech
+            topic: ha
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

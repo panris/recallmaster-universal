@@ -1,0 +1,57 @@
+server:
+  port: 8088
+
+recallmaster:
+  default-top-k: 10
+  evaluator:
+    primary-judge: deepseek-chat
+    secondary-judge: gpt-4o
+    base-url: http://localhost:4000/v1
+    api-key: ${LITELLM_API_KEY:}
+    concurrency: 5
+    strict-ground-truth: true
+    disagreement-threshold: 20
+  embedding:
+    provider: hash
+    model: hash-embedding-v1
+    dimensions: 256
+  databases:
+    - name: Medical_PG
+      type: postgres
+      enabled: true
+      connection: postgresql://user:pass@localhost:5432/db
+      table: rag_chunks
+      id-col: id
+      text-col: content
+      vector-col: embedding
+      metric: cosine
+    - name: Tech_Milvus
+      type: milvus
+      enabled: true
+      uri: http://localhost:19530
+      collection: tech_chunks
+      id-col: id
+      text-col: content
+      vector-col: embedding
+      api-key: ${MILVUS_API_KEY:}
+    - name: Local_Chroma
+      type: chroma
+      enabled: false
+      uri: http://localhost:8000
+      collection: collection-id-or-query-url
+      id-col: id
+      text-col: document
+      vector-col: embedding
+      params:
+        tenant: default_tenant
+        database: default_database
+    - name: Search_ES
+      type: elasticsearch
+      enabled: false
+      uri: http://localhost:9200
+      index: rag_chunks
+      id-col: id
+      text-col: content
+      vector-col: embedding
+      metadata-col: metadata
+      api-key: ${ELASTIC_API_KEY:}

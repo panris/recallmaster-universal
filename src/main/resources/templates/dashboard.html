@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RecallMaster Universal</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<main class="layout">
+    <header class="topbar">
+        <div>
+            <h1>RecallMaster Universal</h1>
+            <p>通用 RAG 召回率评测平台</p>
+        </div>
+        <button id="runDemo">运行 Demo</button>
+    </header>
+
+    <section class="band">
+        <div class="section-head">
+            <h2>连接器</h2>
+            <button id="healthCheck">健康检查</button>
+        </div>
+        <div id="connectors" class="connector-grid">
+            <article class="connector" th:each="connector : ${connectors}">
+                <strong th:text="${connector.name()}">demo-memory</strong>
+                <span th:text="${connector.type()}">memory</span>
+                <small th:text="${connector.available() ? '可用' : '需补配置'}">可用</small>
+            </article>
+        </div>
+    </section>
+
+    <section class="band">
+        <div class="section-head">
+            <h2>任务看板</h2>
+            <div class="actions">
+                <button id="compareLatest" class="secondary">对比最近两次</button>
+                <button id="refresh" class="secondary">刷新</button>
+            </div>
+        </div>
+        <div id="runs" class="runs"></div>
+    </section>
+
+    <section class="band">
+        <h2>Run 对比</h2>
+        <form id="compareRuns" class="inline-form">
+            <label>Baseline Run
+                <input name="baselineId" placeholder="run id">
+            </label>
+            <label>Candidate Run
+                <input name="candidateId" placeholder="run id">
+            </label>
+            <button type="submit">对比</button>
+        </form>
+        <pre id="compareResult"></pre>
+    </section>
+
+    <section class="band">
+        <h2>Case 导入</h2>
+        <form id="importCases" class="import-form">
+            <label>JSON 文件
+                <input type="file" name="file" accept=".json,application/json">
+            </label>
+            <label>或直接粘贴 JSON
+                <textarea name="caseJson" placeholder='[{"question":"..."}]'></textarea>
+            </label>
+            <button type="submit">导入并校验</button>
+        </form>
+        <pre id="importResult"></pre>
+    </section>
+
+    <section class="band detail">
+        <h2>单案复现</h2>
+        <form id="singleCase">
+            <label>数据库
+                <input name="database" value="demo-memory">
+            </label>
+            <label>Top K
+                <input name="topK" type="number" min="1" value="5">
+            </label>
+            <label>问题
+                <textarea name="question">如何配置负载均衡？高可用模式下心跳间隔是多少？</textarea>
+            </label>
+            <label>子意图，用逗号分隔
+                <input name="intents" value="负载均衡配置,高可用参数">
+            </label>
+            <label>标准 ID，用逗号分隔
+                <input name="expectedIds" value="tech_lb_config,tech_ha_heartbeat">
+            </label>
+            <button type="submit">重新运行</button>
+        </form>
+        <pre id="singleResult"></pre>
+    </section>
+</main>
+<script src="/dashboard.js"></script>
+</body>
+</html>
