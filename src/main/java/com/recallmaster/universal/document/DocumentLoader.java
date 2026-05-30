@@ -44,7 +44,7 @@ public class DocumentLoader {
                 Map<String, String> metadata = new LinkedHashMap<>();
                 metadata.put("source", path.toString());
                 metadata.put("chunk", Integer.toString(chunkNo));
-                chunks.add(new DocumentChunk(path.getFileName() + "#" + chunkNo, piece, metadata));
+                chunks.add(new DocumentChunk(path.getFileName() + "#" + chunkNo, piece, null, metadata));
                 chunkNo++;
             }
             if (end >= normalized.length()) {

@@ -1,13 +1,15 @@
 package com.recallmaster.universal.connector;
 
 import com.recallmaster.universal.config.RecallMasterProperties;
+import com.recallmaster.universal.model.DocumentChunk;
 import com.recallmaster.universal.model.SearchRequest;
 import com.recallmaster.universal.model.SearchResult;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class ChromaConnector implements VectorStoreConnector {
 
@@ -92,5 +94,36 @@ public class ChromaConnector implements VectorStoreConnector {
 
     private String trimTrailingSlash(String value) {
         return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void upsert(Collection<DocumentChunk> chunks) {
+        if (!isAvailable()) {
+            throw new IllegalStateException("Chroma connector requires uri and collection");
+        }
+        if (chunks.isEmpty()) {
+            return;
+        }
+        List<String> ids = new ArrayList<>();
+        List<List<Float>> embeddings = new ArrayList<>();
+        List<Map<String, String>> metadatas = new ArrayList<>();
+        List<String> documents = new ArrayList<>();
+        for (DocumentChunk chunk : chunks) {
+            ids.add(chunk.id());
+            embeddings.add(toList(chunk.vector()));
+            metadatas.add(chunk.metadata());
+            documents.add(chunk.text());
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("ids", ids);
+        body.put("embeddings", embeddings);
+        body.put("metadatas", metadatas);
+        body.put("documents", documents);
+        String base = trimTrailingSlash(database.getUri());
+        String tenant = database.getParams().getOrDefault("tenant", "default_tenant");
+        String db = database.getParams().getOrDefault("database", "default_database");
+        String path = base + "/api/v2/tenants/" + tenant + "/databases/" + db + "/collections/" + database.getCollection() + "/upsert";
+        http.postJson(path, body, database.getApiKey());
     }
 }

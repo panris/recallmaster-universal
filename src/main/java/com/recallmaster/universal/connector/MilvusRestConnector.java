@@ -1,14 +1,16 @@
 package com.recallmaster.universal.connector;
 
 import com.recallmaster.universal.config.RecallMasterProperties;
+import com.recallmaster.universal.model.DocumentChunk;
 import com.recallmaster.universal.model.SearchRequest;
 import com.recallmaster.universal.model.SearchResult;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class MilvusRestConnector implements VectorStoreConnector {
 
@@ -105,5 +107,34 @@ public class MilvusRestConnector implements VectorStoreConnector {
 
     private String trimTrailingSlash(String value) {
         return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void upsert(Collection<DocumentChunk> chunks) {
+        if (!isAvailable()) {
+            throw new IllegalStateException("Milvus connector requires uri and collection");
+        }
+        if (chunks.isEmpty()) {
+            return;
+        }
+        List<Map<String, Object>> data = new ArrayList<>();
+        for (DocumentChunk chunk : chunks) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put(database.getIdCol(), chunk.id());
+            row.put(database.getTextCol(), chunk.text());
+            row.put(database.getVectorCol(), toList(chunk.vector()));
+            if (!chunk.metadata().isEmpty()) {
+                row.put(database.getMetadataCol(), chunk.metadata());
+            }
+            data.add(row);
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("collectionName", database.getCollection());
+        body.put("data", data);
+        String endpoint = database.getParams().getOrDefault(
+                "upsertEndpoint",
+                trimTrailingSlash(database.getUri()) + "/v2/vectordb/entities/upsert");
+        http.postJson(endpoint, body, database.getApiKey());
     }
 }

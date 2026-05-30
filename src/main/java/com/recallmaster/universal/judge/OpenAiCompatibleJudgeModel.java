@@ -12,9 +12,9 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import tools.jackson.core.JacksonException;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JacksonException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class OpenAiCompatibleJudgeModel implements JudgeModel {
 
@@ -102,19 +102,23 @@ public class OpenAiCompatibleJudgeModel implements JudgeModel {
                 """;
     }
 
-    private String userPrompt(EvaluationCase evaluationCase, List<SearchResult> retrieved) throws JacksonException {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("question", evaluationCase.question());
-        payload.put("intents", evaluationCase.intents());
-        payload.put("expected_ids", evaluationCase.expectedIds());
-        payload.put("retrieved", retrieved.stream()
-                .map(result -> Map.of(
-                        "id", result.id(),
-                        "score", result.score(),
-                        "text", result.text(),
-                        "metadata", result.metadata()))
-                .toList());
-        return objectMapper.writeValueAsString(payload);
+    private String userPrompt(EvaluationCase evaluationCase, List<SearchResult> retrieved) {
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("question", evaluationCase.question());
+            payload.put("intents", evaluationCase.intents());
+            payload.put("expected_ids", evaluationCase.expectedIds());
+            payload.put("retrieved", retrieved.stream()
+                    .map(result -> Map.of(
+                            "id", result.id(),
+                            "score", result.score(),
+                            "text", result.text(),
+                            "metadata", result.metadata()))
+                    .toList());
+            return objectMapper.writeValueAsString(payload);
+        } catch (JacksonException e) {
+            throw new IllegalStateException("Failed to serialize user prompt", e);
+        }
     }
 
     private Number number(Object value, Number defaultValue) {

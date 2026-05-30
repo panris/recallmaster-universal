@@ -4,7 +4,7 @@ import com.recallmaster.universal.config.RecallMasterProperties;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Component
 public class JudgeRegistry {

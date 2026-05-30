@@ -21,7 +21,7 @@ public class InMemoryVectorStoreConnector implements VectorStoreConnector {
         this.name = database.getName();
         this.embeddingModel = embeddingModel;
         for (RecallMasterProperties.SeedDocument document : database.getDocuments()) {
-            upsert(List.of(new DocumentChunk(document.getId(), document.getText(), document.getMetadata())));
+            upsert(List.of(new DocumentChunk(document.getId(), document.getText(), null, document.getMetadata())));
         }
     }
 

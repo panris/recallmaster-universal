@@ -7,10 +7,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
-class HttpJsonClient {
+public class HttpJsonClient {
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
@@ -20,11 +20,11 @@ class HttpJsonClient {
             .build();
     private final ObjectMapper objectMapper;
 
-    HttpJsonClient(ObjectMapper objectMapper) {
+    public HttpJsonClient(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 
-    Map<String, Object> postJson(String url, Object body, String apiKey) {
+    public Map<String, Object> postJson(String url, Object body, String apiKey) {
         try {
             HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(url))
