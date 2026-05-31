@@ -1,7 +1,7 @@
 package com.recallmaster.universal.connector;
 
 import com.recallmaster.universal.config.RecallMasterProperties;
-import com.recallmaster.universal.embedding.EmbeddingModel;
+import com.recallmaster.universal.embedding.EmbeddingModelProvider;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,17 +14,20 @@ public class ConnectorRegistry {
 
     private final Map<String, VectorStoreConnector> connectors = new LinkedHashMap<>();
     private final Map<String, RecallMasterProperties.Database> databases = new LinkedHashMap<>();
+    private final List<ConnectorFactory> factories;
 
     public ConnectorRegistry(
             RecallMasterProperties properties,
-            EmbeddingModel embeddingModel,
+            List<ConnectorFactory> factories,
+            EmbeddingModelProvider embeddingModelProvider,
             ObjectMapper objectMapper
     ) {
+        this.factories = factories;
         for (RecallMasterProperties.Database database : properties.getDatabases()) {
             if (!database.isEnabled()) {
                 continue;
             }
-            VectorStoreConnector connector = create(database, embeddingModel, objectMapper);
+            VectorStoreConnector connector = create(database, embeddingModelProvider, objectMapper);
             connectors.put(connector.name(), connector);
             databases.put(connector.name(), database);
         }
@@ -68,17 +71,17 @@ public class ConnectorRegistry {
 
     private VectorStoreConnector create(
             RecallMasterProperties.Database database,
-            EmbeddingModel embeddingModel,
+            EmbeddingModelProvider embeddingModelProvider,
             ObjectMapper objectMapper
     ) {
-        return switch (database.getType().toLowerCase()) {
-            case "memory", "inmemory", "demo" -> new InMemoryVectorStoreConnector(database, embeddingModel);
-            case "postgres", "postgresql", "pgvector" -> new PostgresPgvectorConnector(database);
-            case "milvus" -> new MilvusRestConnector(database, objectMapper);
-            case "chroma", "chromadb" -> new ChromaConnector(database, objectMapper);
-            case "elasticsearch", "elastic", "es" -> new ElasticsearchConnector(database, objectMapper);
-            default -> throw new IllegalArgumentException("Unsupported connector type: " + database.getType());
-        };
+        String type = database.getType().toLowerCase();
+        for (ConnectorFactory factory : factories) {
+            if (factory.supports(type)) {
+                return factory.create(database, embeddingModelProvider, objectMapper);
+            }
+        }
+        throw new IllegalArgumentException("Unsupported connector type: " + database.getType()
+                + ". Available factories: " + factories.stream().map(f -> f.getClass().getSimpleName()).toList());
     }
 
     private ConnectorDescriptor describe(VectorStoreConnector connector) {

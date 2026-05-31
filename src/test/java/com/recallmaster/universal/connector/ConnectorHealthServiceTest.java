@@ -3,6 +3,7 @@ package com.recallmaster.universal.connector;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.recallmaster.universal.config.RecallMasterProperties;
+import com.recallmaster.universal.embedding.EmbeddingModelProvider;
 import com.recallmaster.universal.embedding.HashEmbeddingModel;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +16,9 @@ class ConnectorHealthServiceTest {
     void describesAndChecksMemoryConnector() {
         RecallMasterProperties properties = properties();
         HashEmbeddingModel embedding = new HashEmbeddingModel(128);
-        ConnectorRegistry registry = new ConnectorRegistry(properties, embedding, new ObjectMapper());
+        EmbeddingModelProvider provider = () -> embedding;
+        List<ConnectorFactory> factories = List.of(new InMemoryConnectorFactory());
+        ConnectorRegistry registry = new ConnectorRegistry(properties, factories, provider, new ObjectMapper());
         ConnectorHealthService healthService = new ConnectorHealthService(registry, embedding, properties);
 
         ConnectorDescriptor descriptor = registry.describe("demo-memory");

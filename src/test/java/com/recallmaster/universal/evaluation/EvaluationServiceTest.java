@@ -3,7 +3,10 @@ package com.recallmaster.universal.evaluation;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.recallmaster.universal.config.RecallMasterProperties;
+import com.recallmaster.universal.connector.ConnectorFactory;
 import com.recallmaster.universal.connector.ConnectorRegistry;
+import com.recallmaster.universal.connector.InMemoryConnectorFactory;
+import com.recallmaster.universal.embedding.EmbeddingModelProvider;
 import com.recallmaster.universal.embedding.HashEmbeddingModel;
 import com.recallmaster.universal.judge.JudgeRegistry;
 import com.recallmaster.universal.judge.RuleBasedJudgeModel;
@@ -18,11 +21,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 class EvaluationServiceTest {
 
+    private static final List<ConnectorFactory> FACTORIES = List.of(new InMemoryConnectorFactory());
+
     @Test
     void evaluatesHardRecallAndMarksModelLabelsForReview() {
         RecallMasterProperties properties = properties();
         HashEmbeddingModel embedding = new HashEmbeddingModel(256);
-        ConnectorRegistry connectorRegistry = new ConnectorRegistry(properties, embedding, new ObjectMapper());
+        EmbeddingModelProvider provider = () -> embedding;
+        ConnectorRegistry connectorRegistry = new ConnectorRegistry(properties, FACTORIES, provider, new ObjectMapper());
         JudgeRegistry judgeRegistry = new JudgeRegistry(new RuleBasedJudgeModel(), properties, new ObjectMapper());
         EvaluationService service = new EvaluationService(connectorRegistry, embedding, judgeRegistry, properties);
 
@@ -46,7 +52,8 @@ class EvaluationServiceTest {
     void reportsPartialRecallWhenExpectedIdIsMissing() {
         RecallMasterProperties properties = properties();
         HashEmbeddingModel embedding = new HashEmbeddingModel(256);
-        ConnectorRegistry connectorRegistry = new ConnectorRegistry(properties, embedding, new ObjectMapper());
+        EmbeddingModelProvider provider = () -> embedding;
+        ConnectorRegistry connectorRegistry = new ConnectorRegistry(properties, FACTORIES, provider, new ObjectMapper());
         JudgeRegistry judgeRegistry = new JudgeRegistry(new RuleBasedJudgeModel(), properties, new ObjectMapper());
         EvaluationService service = new EvaluationService(connectorRegistry, embedding, judgeRegistry, properties);
 

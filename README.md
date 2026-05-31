@@ -24,6 +24,8 @@ Open `http://localhost:8088`.
 
 The default config includes a `demo-memory` connector with hash embeddings, so the app can run without external databases or LLM keys.
 
+中文使用说明见 [`docs/user-guide-zh.md`](docs/user-guide-zh.md)。
+
 ## API Examples
 
 Start a run:

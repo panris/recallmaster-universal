@@ -1,6 +1,7 @@
 package com.recallmaster.universal.config;
 
 import com.recallmaster.universal.embedding.EmbeddingModel;
+import com.recallmaster.universal.embedding.EmbeddingModelProvider;
 import com.recallmaster.universal.embedding.HashEmbeddingModel;
 import com.recallmaster.universal.embedding.OpenAiCompatibleEmbeddingModel;
 import com.recallmaster.universal.llm.LlmClient;
@@ -26,6 +27,11 @@ public class AppConfig {
                     objectMapper);
         }
         throw new IllegalArgumentException("Unsupported embedding provider: " + provider + ". Supported: hash, openai, openai-compatible");
+    }
+
+    @Bean
+    public EmbeddingModelProvider embeddingModelProvider(EmbeddingModel embeddingModel) {
+        return () -> embeddingModel;
     }
 
     @Bean
