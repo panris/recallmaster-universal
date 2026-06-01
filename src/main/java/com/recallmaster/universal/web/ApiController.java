@@ -9,6 +9,8 @@ import com.recallmaster.universal.connector.ConnectorDescriptor;
 import com.recallmaster.universal.connector.ConnectorHealth;
 import com.recallmaster.universal.connector.ConnectorHealthService;
 import com.recallmaster.universal.connector.ConnectorRegistry;
+import com.recallmaster.universal.connector.VectorStoreConnector;
+import com.recallmaster.universal.embedding.EmbeddingModel;
 import com.recallmaster.universal.model.CaseResult;
 import com.recallmaster.universal.model.EvaluationCase;
 import com.recallmaster.universal.model.EvaluationRun;
@@ -17,8 +19,11 @@ import com.recallmaster.universal.report.RunComparison;
 import com.recallmaster.universal.report.RunSummary;
 import com.recallmaster.universal.task.EvaluationRunRequest;
 import com.recallmaster.universal.task.EvaluationRunService;
+import com.recallmaster.universal.model.DocumentChunk;
+
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -41,6 +46,7 @@ public class ApiController {
     private final ConnectorRegistry connectorRegistry;
     private final ConnectorHealthService connectorHealthService;
     private final ReportService reportService;
+    private final EmbeddingModel embeddingModel;
 
     public ApiController(
             CaseGeneratorService caseGeneratorService,
@@ -48,7 +54,8 @@ public class ApiController {
             EvaluationRunService evaluationRunService,
             ConnectorRegistry connectorRegistry,
             ConnectorHealthService connectorHealthService,
-            ReportService reportService
+            ReportService reportService,
+            EmbeddingModel embeddingModel
     ) {
         this.caseGeneratorService = caseGeneratorService;
         this.caseImportService = caseImportService;
@@ -56,6 +63,7 @@ public class ApiController {
         this.connectorRegistry = connectorRegistry;
         this.connectorHealthService = connectorHealthService;
         this.reportService = reportService;
+        this.embeddingModel = embeddingModel;
     }
 
     @GetMapping("/connectors")
@@ -169,5 +177,21 @@ public class ApiController {
                         .build()
                         .toString())
                 .body(caseImportService.exportJson(cases));
+    }
+
+    @PostMapping("/connectors/{name}/upsert")
+    public void upsert(@PathVariable String name, @RequestBody UpsertRequest request) {
+        VectorStoreConnector connector = connectorRegistry.get(name);
+        if (connector == null) {
+            throw new IllegalArgumentException("Unknown connector: " + name);
+        }
+        List<DocumentChunk> chunks = request.documents().stream()
+                .map(doc -> {
+                    String id = doc.id() != null ? doc.id() : UUID.randomUUID().toString();
+                    float[] vector = embeddingModel.embed(doc.text());
+                    return new DocumentChunk(id, doc.text(), vector, doc.metadata());
+                })
+                .toList();
+        connector.upsert(chunks);
     }
 }
