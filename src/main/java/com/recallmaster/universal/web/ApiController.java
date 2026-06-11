@@ -24,6 +24,7 @@ import com.recallmaster.universal.model.DocumentChunk;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -116,31 +117,44 @@ public class ApiController {
     @GetMapping(value = "/runs/{id}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamRun(@PathVariable String id) {
         SseEmitter emitter = new SseEmitter(0L);
-        emitter.onCompletion(() -> {});
-        emitter.onTimeout(() -> emitter.complete());
-        emitter.onError(ex -> emitter.complete());
+        AtomicBoolean completed = new AtomicBoolean(false);
+        emitter.onCompletion(() -> completed.set(true));
+        emitter.onTimeout(() -> { completed.set(true); emitter.complete(); });
+        emitter.onError(ex -> { completed.set(true); emitter.complete(); });
         Thread.startVirtualThread(() -> {
             int sent = 0;
             try {
-                while (true) {
+                while (!completed.get()) {
                     EvaluationRun run = evaluationRunService.get(id);
-                    List<String> events = run.getEvents();
-                    for (int i = sent; i < events.size(); i++) {
-                        emitter.send(SseEmitter.event().name("progress").data(events.get(i)));
-                    }
-                    sent = events.size();
-                    emitter.send(SseEmitter.event().name("status").data(run.getStatus().name()));
-                    if (run.getStatus().name().equals("COMPLETED") || run.getStatus().name().equals("COMPLETED_WITH_ERRORS") || run.getStatus().name().equals("FAILED")) {
+                    if (run == null) {
+                        emitter.send(SseEmitter.event().name("status").data("NOT_FOUND"));
                         emitter.complete();
                         break;
                     }
-                    Thread.sleep(1000);
+                    // Snapshot events to avoid concurrent modification
+                    List<String> snapshot = List.copyOf(run.getEvents());
+                    for (int i = sent; i < snapshot.size(); i++) {
+                        if (completed.get()) break;
+                        emitter.send(SseEmitter.event().name("progress").data(snapshot.get(i)));
+                    }
+                    sent = snapshot.size();
+                    if (completed.get()) break;
+                    emitter.send(SseEmitter.event().name("status").data(run.getStatus().name()));
+                    String status = run.getStatus().name();
+                    if (status.equals("COMPLETED") || status.equals("COMPLETED_WITH_ERRORS") || status.equals("FAILED")) {
+                        emitter.complete();
+                        break;
+                    }
+                    Thread.sleep(500);
                 }
             } catch (IOException ex) {
-                emitter.completeWithError(ex);
+                if (!completed.get()) emitter.completeWithError(ex);
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
-                emitter.completeWithError(ex);
+                if (!completed.get()) emitter.completeWithError(ex);
+            } catch (IllegalStateException ex) {
+                // Emitter already completed - just exit
+                if (!completed.get()) emitter.complete();
             }
         });
         return emitter;
