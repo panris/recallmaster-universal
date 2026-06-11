@@ -9,8 +9,11 @@ import com.recallmaster.universal.report.RunComparison;
 import com.recallmaster.universal.report.RunSummary;
 import com.recallmaster.universal.task.EvaluationRunRequest;
 import com.recallmaster.universal.task.EvaluationRunService;
+import com.recallmaster.universal.task.ScheduledRunService;
+import com.recallmaster.universal.task.ScheduledRunService.ScheduledConfig;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -31,13 +34,16 @@ public class ApiController {
     private final EvaluationRunService evaluationRunService;
     private final ReportService reportService;
     private final CaseImportService caseImportService;
+    private final ScheduledRunService scheduledRunService;
 
     public ApiController(EvaluationRunService evaluationRunService,
                          ReportService reportService,
-                         CaseImportService caseImportService) {
+                         CaseImportService caseImportService,
+                         ScheduledRunService scheduledRunService) {
         this.evaluationRunService = evaluationRunService;
         this.reportService = reportService;
         this.caseImportService = caseImportService;
+        this.scheduledRunService = scheduledRunService;
     }
 
     @PostMapping
@@ -126,6 +132,22 @@ public class ApiController {
     @PostMapping("/{id}/retry-failed")
     public EvaluationRun retryFailed(@PathVariable String id) {
         return evaluationRunService.retryFailed(id);
+    }
+
+    @PostMapping("/schedule")
+    public ScheduledConfig scheduleRun(@RequestBody ScheduledConfig config) {
+        String scheduleId = scheduledRunService.schedule(config);
+        return new ScheduledConfig(scheduleId, config.connectorName(), config.topK(), config.cases(), config.cron(), config.lastRunEpochMs());
+    }
+
+    @GetMapping("/schedule")
+    public Map<String, ScheduledConfig> listSchedules() {
+        return scheduledRunService.listSchedules();
+    }
+
+    @PostMapping("/schedule/{scheduleId}/cancel")
+    public void cancelSchedule(@PathVariable String scheduleId) {
+        scheduledRunService.cancelSchedule(scheduleId);
     }
 
     @GetMapping(value = "/{id}/report.csv", produces = "text/csv")
