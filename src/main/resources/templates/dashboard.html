@@ -69,6 +69,25 @@
         <pre id="importResult"></pre>
     </section>
 
+    <section class="band">
+        <h2>新建评测</h2>
+        <form id="newRun" class="new-run-form">
+            <div class="form-row">
+                <label>数据库
+                    <select name="database" id="newRunDatabase"></select>
+                </label>
+                <label>Top K
+                    <input name="topK" type="number" min="1" max="100" value="5">
+                </label>
+            </div>
+            <label>Case JSON（粘贴或从导入结果复制）
+                <textarea name="cases" rows="8" placeholder='[{"question":"...","intents":[...],"expectedIds":[...]}]'></textarea>
+            </label>
+            <button type="submit" id="startNewRun">开始评测</button>
+        </form>
+        <pre id="newRunResult"></pre>
+    </section>
+
     <section class="band detail">
         <h2>单案复现</h2>
         <form id="singleCase">

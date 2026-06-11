@@ -257,6 +257,24 @@ pre {
     color: #f4f7fb;
 }
 
+.new-run-form .form-row {
+    display: flex;
+    gap: 16px;
+}
+
+.new-run-form .form-row > * {
+    flex: 1;
+}
+
+.new-run-form textarea {
+    min-height: 120px;
+}
+
+.new-run-form button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 @media (max-width: 720px) {
     .topbar,
     .section-head,

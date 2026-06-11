@@ -28,6 +28,53 @@ const importResult = document.querySelector("#importResult");
 const singleCase = document.querySelector("#singleCase");
 const singleResult = document.querySelector("#singleResult");
 
+const newRun = document.querySelector("#newRun");
+const newRunResult = document.querySelector("#newRunResult");
+const newRunDatabase = document.querySelector("#newRunDatabase");
+const startNewRunBtn = document.querySelector("#startNewRun");
+
+newRun.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = new FormData(newRun);
+  let cases;
+  try {
+    cases = JSON.parse(form.get("cases"));
+    if (!Array.isArray(cases) || cases.length === 0) {
+      throw new Error("cases must be a non-empty array");
+    }
+  } catch (e) {
+    newRunResult.textContent = "Case JSON 格式错误: " + e.message;
+    return;
+  }
+  startNewRunBtn.disabled = true;
+  startNewRunBtn.textContent = "评测中...";
+  try {
+    const response = await fetch("/api/runs", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        database: form.get("database"),
+        topK: Number(form.get("topK")),
+        cases
+      })
+    });
+    if (!response.ok) {
+      const err = await response.text();
+      newRunResult.textContent = "创建失败: " + err;
+      return;
+    }
+    const run = await response.json();
+    newRunResult.textContent = "评测已创建: " + run.id;
+    await loadRuns();
+    watchRun(run.id);
+  } catch (e) {
+    newRunResult.textContent = "请求失败: " + e.message;
+  } finally {
+    startNewRunBtn.disabled = false;
+    startNewRunBtn.textContent = "开始评测";
+  }
+});
+
 runDemo.addEventListener("click", async () => {
   const response = await fetch("/api/runs", {
     method: "POST",
@@ -185,6 +232,14 @@ function renderRun(run) {
 async function loadConnectors() {
   const connectors = await fetchJson("/api/connectors");
   connectorsEl.innerHTML = "";
+  // Populate new-run database selector
+  newRunDatabase.innerHTML = "";
+  for (const connector of connectors) {
+    const option = document.createElement("option");
+    option.value = connector.name;
+    option.textContent = `${connector.name} (${connector.type})`;
+    newRunDatabase.appendChild(option);
+  }
   for (const connector of connectors) {
     connectorsEl.appendChild(renderConnector(connector));
   }
