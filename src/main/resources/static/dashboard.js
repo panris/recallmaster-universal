@@ -18,46 +18,111 @@ const demoCases = [
 function renderCaseDetail(result) {
   const detail = document.querySelector("#caseDetail");
   if (!result || !result.caseInfo) {
-    detail.innerHTML = "";
+    detail.replaceChildren();
     return;
   }
   const ci = result.caseInfo;
   const rm = result.retrievalMetrics ?? {};
   const ai = result.aiAnalysis ?? {};
-  detail.innerHTML = `
-    <div class="detail-header">
-      <span class="status-badge ${result.status}">${result.status}</span>
-      <strong>${escHtml(ci.question)}</strong>
-    </div>
-    <div class="detail-grid">
-      <div class="detail-card">
-        <h4>召回指标</h4>
-        <dl>
-          <dt>Recall@K</dt><dd>${formatPct(rm.recallRate)}</dd>
-          <dt>Hit@K</dt><dd>${rm.hitRate != null ? formatPct(rm.hitRate) : "N/A"}</dd>
-          <dt>Precision@K</dt><dd>${rm.precisionAtK != null ? formatPct(rm.precisionAtK) : "N/A"}</dd>
-          <dt>MRR</dt><dd>${rm.mrr != null ? rm.mrr.toFixed(3) : "N/A"}</dd>
-          <dt>nDCG</dt><dd>${rm.ndcg != null ? rm.ndcg.toFixed(3) : "N/A"}</dd>
-        </dl>
-      </div>
-      <div class="detail-card">
-        <h4>意图分析</h4>
-        <dl>
-          <dt>意图覆盖</dt><dd>${formatPct(ai.intentCoverage)}</dd>
-          <dt>噪音比</dt><dd>${formatPct(ai.noiseRatio)}</dd>
-          <dt>需人工审核</dt><dd>${ai.needsHumanReview ? "是" : "否"}</dd>
-        </dl>
-        ${ai.summary ? `<p class="detail-summary">${escHtml(ai.summary)}</p>` : ""}
-      </div>
-      <div class="detail-card">
-        <h4>预期 vs 实际</h4>
-        <div class="id-list">
-          <div><span class="label">预期 ID:</span> ${(ci.expectedIds ?? []).map(id => `<code>${escHtml(id)}</code>`).join(" ")}</div>
-          <div><span class="label">子意图:</span> ${(ci.intents ?? []).map(i => `<code>${escHtml(i)}</code>`).join(" ")}</div>
-        </div>
-      </div>
-    </div>
-  `;
+
+  const header = document.createElement("div");
+  header.className = "detail-header";
+  const badge = document.createElement("span");
+  badge.className = `status-badge ${result.status}`;
+  badge.textContent = result.status;
+  const q = document.createElement("strong");
+  q.textContent = ci.question;
+  header.appendChild(badge);
+  header.appendChild(q);
+  detail.replaceChildren(header);
+
+  const grid = document.createElement("div");
+  grid.className = "detail-grid";
+
+  // Recall card
+  const recallCard = document.createElement("div");
+  recallCard.className = "detail-card";
+  recallCard.appendChild(makeH4("召回指标"));
+  recallCard.appendChild(makeDL([
+    ["Recall@K", formatPct(rm.recallRate)],
+    ["Hit@K", rm.hitRate != null ? formatPct(rm.hitRate) : "N/A"],
+    ["Precision@K", rm.precisionAtK != null ? formatPct(rm.precisionAtK) : "N/A"],
+    ["MRR", rm.mrr != null ? rm.mrr.toFixed(3) : "N/A"],
+    ["nDCG", rm.ndcg != null ? rm.ndcg.toFixed(3) : "N/A"]
+  ]));
+  grid.appendChild(recallCard);
+
+  // Intent card
+  const intentCard = document.createElement("div");
+  intentCard.className = "detail-card";
+  intentCard.appendChild(makeH4("意图分析"));
+  intentCard.appendChild(makeDL([
+    ["意图覆盖", formatPct(ai.intentCoverage)],
+    ["噪音比", formatPct(ai.noiseRatio)],
+    ["需人工审核", ai.needsHumanReview ? "是" : "否"]
+  ]));
+  if (ai.summary) {
+    const p = document.createElement("p");
+    p.className = "detail-summary";
+    p.textContent = ai.summary;
+    intentCard.appendChild(p);
+  }
+  grid.appendChild(intentCard);
+
+  // ID card
+  const idCard = document.createElement("div");
+  idCard.className = "detail-card";
+  idCard.appendChild(makeH4("预期 vs 实际"));
+  const idList = document.createElement("div");
+  idList.className = "id-list";
+  idList.appendChild(makeIdRow("预期 ID:", ci.expectedIds ?? []));
+  idList.appendChild(makeIdRow("子意图:", ci.intents ?? []));
+  idCard.appendChild(idList);
+  grid.appendChild(idCard);
+
+  detail.appendChild(grid);
+}
+
+function makeH4(text) {
+  const h4 = document.createElement("h4");
+  h4.textContent = text;
+  return h4;
+}
+
+function makeDL(items) {
+  const dl = document.createElement("dl");
+  for (const [dtText, ddText] of items) {
+    const dt = document.createElement("dt");
+    dt.textContent = dtText;
+    const dd = document.createElement("dd");
+    dd.textContent = ddText;
+    dl.appendChild(dt);
+    dl.appendChild(dd);
+  }
+  return dl;
+}
+
+function makeIdRow(label, ids) {
+  const row = document.createElement("div");
+  const span = document.createElement("span");
+  span.className = "label";
+  span.textContent = label;
+  row.appendChild(span);
+  for (const id of ids) {
+    const code = document.createElement("code");
+    code.textContent = id;
+    row.appendChild(code);
+  }
+  return row;
+}
+
+function makeStat(label, value) {
+  const span = document.createElement("span");
+  span.textContent = `${label} `;
+  const strong = document.createElement("strong");
+  strong.textContent = value;
+  span.appendChild(strong);
+  return span;
 }
 
 function escHtml(str) {
@@ -206,7 +271,7 @@ singleCase.addEventListener("submit", async (event) => {
 
 async function loadRuns() {
   const runs = await fetchJson("/api/runs");
-  runsEl.innerHTML = "";
+  runsEl.replaceChildren();
   for (const run of runs) {
     runsEl.appendChild(renderRun(run));
   }
@@ -230,18 +295,26 @@ function renderRun(run) {
   article.className = "run";
   const head = document.createElement("div");
   head.className = "run-head";
-  head.innerHTML = `<div><strong>${run.database}</strong><small>${run.id}</small></div><span>${run.status} · ${run.completed}/${run.total} · TopK ${run.topK}</span>`;
+  const headLeft = document.createElement("div");
+  const dbName = document.createElement("strong");
+  dbName.textContent = run.database;
+  const runId = document.createElement("small");
+  runId.textContent = run.id;
+  headLeft.appendChild(dbName);
+  headLeft.appendChild(runId);
+  const headRight = document.createElement("span");
+  headRight.textContent = `${run.status} · ${run.completed}/${run.total} · TopK ${run.topK}`;
+  head.appendChild(headLeft);
+  head.appendChild(headRight);
   article.appendChild(head);
 
   const metrics = summarize(run);
   const stats = document.createElement("div");
   stats.className = "stat-grid";
-  stats.innerHTML = `
-    <span>Avg Recall <strong>${formatPct(metrics.avgRecall)}</strong></span>
-    <span>Intent <strong>${formatPct(metrics.avgCoverage)}</strong></span>
-    <span>Noise <strong>${formatPct(metrics.avgNoise)}</strong></span>
-    <span>Review <strong>${metrics.review}</strong></span>
-  `;
+  stats.appendChild(makeStat("Avg Recall", formatPct(metrics.avgRecall)));
+  stats.appendChild(makeStat("Intent", formatPct(metrics.avgCoverage)));
+  stats.appendChild(makeStat("Noise", formatPct(metrics.avgNoise)));
+  stats.appendChild(makeStat("Review", metrics.review));
   article.appendChild(stats);
 
   const matrix = document.createElement("div");
@@ -260,15 +333,22 @@ function renderRun(run) {
 
   const links = document.createElement("div");
   links.className = "run-actions";
-  links.innerHTML = `
-    <a href="/api/runs/${run.id}/report.csv">CSV 报告</a>
-    <a href="/api/runs/${run.id}/cases.json">导出 Case</a>
-    <button class="secondary" data-run-id="${run.id}">查看 JSON</button>
-  `;
-  links.querySelector("button").addEventListener("click", () => {
+  const csvLink = document.createElement("a");
+  csvLink.href = `/api/runs/${encodeURIComponent(run.id)}/report.csv`;
+  csvLink.textContent = "CSV 报告";
+  const caseLink = document.createElement("a");
+  caseLink.href = `/api/runs/${encodeURIComponent(run.id)}/cases.json`;
+  caseLink.textContent = "导出 Case";
+  const jsonBtn = document.createElement("button");
+  jsonBtn.className = "secondary";
+  jsonBtn.textContent = "查看 JSON";
+  jsonBtn.addEventListener("click", () => {
     singleResult.textContent = JSON.stringify(run, null, 2);
     renderCaseDetail(null);
   });
+  links.appendChild(csvLink);
+  links.appendChild(caseLink);
+  links.appendChild(jsonBtn);
   article.appendChild(links);
 
   const last = run.results?.[run.results.length - 1];
@@ -289,9 +369,9 @@ function renderRun(run) {
 
 async function loadConnectors() {
   const connectors = await fetchJson("/api/connectors");
-  connectorsEl.innerHTML = "";
+  connectorsEl.replaceChildren();
   // Populate new-run database selector
-  newRunDatabase.innerHTML = "";
+  newRunDatabase.replaceChildren();
   for (const connector of connectors) {
     const option = document.createElement("option");
     option.value = connector.name;
@@ -326,12 +406,20 @@ function renderConnector(connector) {
   const card = document.createElement("article");
   card.className = "connector";
   card.dataset.name = connector.name;
-  card.innerHTML = `
-    <strong>${connector.name}</strong>
-    <span>${connector.type} · ${connector.available ? "可用" : "需补配置"}</span>
-    <small>${connector.hints?.required ?? ""}</small>
-    <code>${connector.config?.table !== "-" ? connector.config.table : connector.config?.collection !== "-" ? connector.config.collection : connector.config?.index ?? ""}</code>
-  `;
+  const nameEl = document.createElement("strong");
+  nameEl.textContent = connector.name;
+  const typeEl = document.createElement("span");
+  typeEl.textContent = `${connector.type} · ${connector.available ? "可用" : "需补配置"}`;
+  const hintEl = document.createElement("small");
+  hintEl.textContent = connector.hints?.required ?? "";
+  const codeEl = document.createElement("code");
+  codeEl.textContent = connector.config?.table !== "-" ? connector.config.table
+    : connector.config?.collection !== "-" ? connector.config.collection
+    : connector.config?.index ?? "";
+  card.appendChild(nameEl);
+  card.appendChild(typeEl);
+  card.appendChild(hintEl);
+  card.appendChild(codeEl);
   return card;
 }
 
@@ -343,7 +431,7 @@ async function compare(baselineId, candidateId) {
   const comparison = await fetchJson(`/api/runs/${baselineId}/compare/${candidateId}`);
   compareResult.textContent = JSON.stringify(comparison, null, 2);
   const detail = document.querySelector("#compareDetail");
-  detail.innerHTML = "";
+  detail.replaceChildren();
   const metrics = comparison.metricDeltas ?? comparison;
   if (Array.isArray(metrics)) {
     for (const m of metrics) {
@@ -351,8 +439,13 @@ async function compare(baselineId, candidateId) {
       row.className = "compare-row";
       const delta = m.delta ?? 0;
       const cls = delta > 0 ? "positive" : delta < 0 ? "negative" : "neutral";
-      row.innerHTML = `<span>${m.question ?? m.metric ?? ""}</span>
-        <span class="${cls}">${delta > 0 ? "+" : ""}${(delta * 100).toFixed(1)}%</span>`;
+      const span1 = document.createElement("span");
+      span1.textContent = m.question ?? m.metric ?? "";
+      const span2 = document.createElement("span");
+      span2.className = cls;
+      span2.textContent = `${delta > 0 ? "+" : ""}${(delta * 100).toFixed(1)}%`;
+      row.appendChild(span1);
+      row.appendChild(span2);
       detail.appendChild(row);
     }
   }
