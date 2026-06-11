@@ -108,12 +108,17 @@ importCases.addEventListener("submit", async (event) => {
   const form = new FormData(importCases);
   const file = form.get("file");
   let payload = form.get("caseJson");
+  let filename = "data.json";
   if (file && typeof file !== "string" && file.size > 0) {
     payload = await file.text();
+    filename = file.name;
   }
   const response = await fetch("/api/cases/import", {
     method: "POST",
-    headers: {"Content-Type": "application/json"},
+    headers: {
+      "Content-Type": "application/json",
+      "X-Filename": filename
+    },
     body: payload
   });
   if (!response.ok) {

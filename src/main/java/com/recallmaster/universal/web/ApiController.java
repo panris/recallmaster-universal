@@ -92,9 +92,10 @@ public class ApiController {
         return caseGeneratorService.generate(request);
     }
 
-    @PostMapping(value = "/cases/import", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ImportedCaseSet importCases(@RequestBody String json) {
-        return caseImportService.importJson(json);
+    @PostMapping(value = "/cases/import")
+    public ImportedCaseSet importCases(@RequestBody String content,
+                                       @org.springframework.web.bind.annotation.RequestHeader(value = "X-Filename", defaultValue = "data.json") String filename) {
+        return caseImportService.importCases(content, filename);
     }
 
     @PostMapping("/runs")
