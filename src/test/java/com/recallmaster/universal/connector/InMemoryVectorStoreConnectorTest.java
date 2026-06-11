@@ -6,6 +6,7 @@ import com.recallmaster.universal.config.RecallMasterProperties;
 import com.recallmaster.universal.embedding.HashEmbeddingModel;
 import com.recallmaster.universal.model.SearchRequest;
 import com.recallmaster.universal.model.SearchResult;
+import com.recallmaster.universal.model.DocumentChunk;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,42 @@ class InMemoryVectorStoreConnectorTest {
                 Map.of("topic", "dental")));
 
         assertThat(results).extracting(SearchResult::id).containsExactly("med_dental_limit");
+    }
+
+    @Test
+    void upsertAddsNewDocumentAndSearchable() {
+        HashEmbeddingModel embedding = new HashEmbeddingModel(128);
+        InMemoryVectorStoreConnector connector = new InMemoryVectorStoreConnector(database(), embedding);
+
+        // Upsert a new document
+        connector.upsert(List.of(new DocumentChunk("new-doc", "新文档内容测试", null, Map.of("topic", "test"))));
+
+        // Verify it's searchable
+        List<SearchResult> results = connector.search(new SearchRequest(
+                "新文档",
+                embedding.embed("新文档"),
+                5,
+                Map.of()));
+        assertThat(results).extracting(SearchResult::id).contains("new-doc");
+    }
+
+    @Test
+    void upsertOverwritesExistingDocument() {
+        HashEmbeddingModel embedding = new HashEmbeddingModel(128);
+        InMemoryVectorStoreConnector connector = new InMemoryVectorStoreConnector(database(), embedding);
+
+        // Upsert with existing id overwrites
+        connector.upsert(List.of(new DocumentChunk("med_dental_limit", "牙科报销更新内容", null, Map.of("topic", "dental"))));
+
+        List<SearchResult> results = connector.search(new SearchRequest(
+                "牙科报销更新",
+                embedding.embed("牙科报销更新"),
+                5,
+                Map.of()));
+        assertThat(results).anySatisfy(r -> {
+            assertThat(r.id()).isEqualTo("med_dental_limit");
+            assertThat(r.text()).isEqualTo("牙科报销更新内容");
+        });
     }
 
     private RecallMasterProperties.Database database() {
