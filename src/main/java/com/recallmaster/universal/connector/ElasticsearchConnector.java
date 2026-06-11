@@ -1,9 +1,11 @@
 package com.recallmaster.universal.connector;
 
 import com.recallmaster.universal.config.RecallMasterProperties;
+import com.recallmaster.universal.model.DocumentChunk;
 import com.recallmaster.universal.model.SearchRequest;
 import com.recallmaster.universal.model.SearchResult;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,9 +15,11 @@ public class ElasticsearchConnector implements VectorStoreConnector {
 
     private final RecallMasterProperties.Database database;
     private final HttpJsonClient http;
+    private final ObjectMapper objectMapper;
 
     public ElasticsearchConnector(RecallMasterProperties.Database database, ObjectMapper objectMapper) {
         this.database = database;
+        this.objectMapper = objectMapper;
         this.http = new HttpJsonClient(objectMapper);
     }
 
@@ -93,5 +97,36 @@ public class ElasticsearchConnector implements VectorStoreConnector {
 
     private String trimTrailingSlash(String value) {
         return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
+    }
+
+    @Override
+    public void upsert(Collection<DocumentChunk> chunks) {
+        if (!isAvailable()) {
+            throw new IllegalStateException("Elasticsearch connector requires uri and index");
+        }
+        String bulkUrl = trimTrailingSlash(database.getUri()) + "/" + database.getIndex() + "/_bulk";
+        List<String> lines = new ArrayList<>();
+        for (DocumentChunk chunk : chunks) {
+            Map<String, Object> action = Map.of("index", Map.of(
+                    "_id", chunk.id(),
+                    "_index", database.getIndex()));
+            try {
+                lines.add(objectMapper.writeValueAsString(action));
+                Map<String, Object> doc = new LinkedHashMap<>();
+                doc.put(database.getIdCol(), chunk.id());
+                doc.put(database.getTextCol(), chunk.text());
+                if (chunk.vector() != null && chunk.vector().length > 0) {
+                    doc.put(database.getVectorCol(), toList(chunk.vector()));
+                }
+                if (chunk.metadata() != null && !chunk.metadata().isEmpty()) {
+                    doc.put(database.getMetadataCol(), chunk.metadata());
+                }
+                lines.add(objectMapper.writeValueAsString(doc));
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to serialize chunk " + chunk.id(), e);
+            }
+        }
+        String ndjson = String.join("\n", lines) + "\n";
+        http.postNdjson(bulkUrl, ndjson, database.getApiKey());
     }
 }
