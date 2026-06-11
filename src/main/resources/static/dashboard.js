@@ -15,6 +15,57 @@ const demoCases = [
   }
 ];
 
+function renderCaseDetail(result) {
+  const detail = document.querySelector("#caseDetail");
+  if (!result || !result.caseInfo) {
+    detail.innerHTML = "";
+    return;
+  }
+  const ci = result.caseInfo;
+  const rm = result.retrievalMetrics ?? {};
+  const ai = result.aiAnalysis ?? {};
+  detail.innerHTML = `
+    <div class="detail-header">
+      <span class="status-badge ${result.status}">${result.status}</span>
+      <strong>${escHtml(ci.question)}</strong>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-card">
+        <h4>召回指标</h4>
+        <dl>
+          <dt>Recall@K</dt><dd>${formatPct(rm.recallRate)}</dd>
+          <dt>Hit@K</dt><dd>${rm.hitRate != null ? formatPct(rm.hitRate) : "N/A"}</dd>
+          <dt>Precision@K</dt><dd>${rm.precisionAtK != null ? formatPct(rm.precisionAtK) : "N/A"}</dd>
+          <dt>MRR</dt><dd>${rm.mrr != null ? rm.mrr.toFixed(3) : "N/A"}</dd>
+          <dt>nDCG</dt><dd>${rm.ndcg != null ? rm.ndcg.toFixed(3) : "N/A"}</dd>
+        </dl>
+      </div>
+      <div class="detail-card">
+        <h4>意图分析</h4>
+        <dl>
+          <dt>意图覆盖</dt><dd>${formatPct(ai.intentCoverage)}</dd>
+          <dt>噪音比</dt><dd>${formatPct(ai.noiseRatio)}</dd>
+          <dt>需人工审核</dt><dd>${ai.needsHumanReview ? "是" : "否"}</dd>
+        </dl>
+        ${ai.summary ? `<p class="detail-summary">${escHtml(ai.summary)}</p>` : ""}
+      </div>
+      <div class="detail-card">
+        <h4>预期 vs 实际</h4>
+        <div class="id-list">
+          <div><span class="label">预期 ID:</span> ${(ci.expectedIds ?? []).map(id => `<code>${escHtml(id)}</code>`).join(" ")}</div>
+          <div><span class="label">子意图:</span> ${(ci.intents ?? []).map(i => `<code>${escHtml(i)}</code>`).join(" ")}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function escHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 const runsEl = document.querySelector("#runs");
 const connectorsEl = document.querySelector("#connectors");
 const refresh = document.querySelector("#refresh");
@@ -201,6 +252,7 @@ function renderRun(run) {
     cell.title = `${result.caseInfo.question}\n${result.aiAnalysis.summary}`;
     cell.addEventListener("click", () => {
       singleResult.textContent = JSON.stringify(result, null, 2);
+      renderCaseDetail(result);
     });
     matrix.appendChild(cell);
   }
@@ -215,6 +267,7 @@ function renderRun(run) {
   `;
   links.querySelector("button").addEventListener("click", () => {
     singleResult.textContent = JSON.stringify(run, null, 2);
+    renderCaseDetail(null);
   });
   article.appendChild(links);
 

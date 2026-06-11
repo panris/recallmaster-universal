@@ -293,6 +293,76 @@ pre {
 .compare-row .negative { color: var(--red); }
 .compare-row .neutral  { color: var(--muted); }
 
+.case-detail {
+    margin-top: 16px;
+}
+
+.detail-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.status-badge.PASSED { background: #d4edda; color: #155724; }
+.status-badge.FAILED { background: #f8d7da; color: #721c24; }
+.status-badge.ERROR  { background: #fff3cd; color: #856404; }
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.detail-card {
+    background: var(--panel);
+    padding: 14px;
+    border-radius: 8px;
+    overflow: auto;
+}
+
+.detail-card h4 {
+    margin: 0 0 8px;
+    font-size: 0.9em;
+    color: var(--muted);
+}
+
+.detail-card dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 12px;
+    margin: 0;
+}
+
+.detail-card dt { color: var(--muted); font-size: 0.85em; }
+.detail-card dd { font-weight: 600; margin: 0; }
+
+.detail-summary {
+    margin-top: 8px;
+    font-size: 0.9em;
+    color: var(--text);
+    max-height: 120px;
+    overflow: auto;
+}
+
+.id-list .label { color: var(--muted); font-size: 0.85em; }
+.id-list code {
+    display: inline-block;
+    padding: 1px 6px;
+    margin: 2px;
+    background: var(--bg);
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+
 @media (max-width: 720px) {
     .topbar,
     .section-head,
