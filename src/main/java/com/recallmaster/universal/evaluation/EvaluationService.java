@@ -112,15 +112,26 @@ public class EvaluationService {
         List<JudgeVerdict> verdicts = new ArrayList<>();
         JudgeModel primary = judgeRegistry.get(properties.getEvaluator().getPrimaryJudge());
         if (primary != null) {
-            verdicts.add(primary.judge(evaluationCase, retrieved));
+            try {
+                verdicts.add(primary.judge(evaluationCase, retrieved));
+            } catch (Exception ex) {
+                verdicts.add(new JudgeVerdict(primary.name(), 0, List.of(), List.of(), 0,
+                        "Judge " + primary.name() + " failed: " + ex.getMessage(), "建议人工复核"));
+            }
         }
         JudgeModel secondary = judgeRegistry.get(properties.getEvaluator().getSecondaryJudge());
         if (secondary != null) {
-            verdicts.add(secondary.judge(evaluationCase, retrieved));
+            try {
+                verdicts.add(secondary.judge(evaluationCase, retrieved));
+            } catch (Exception ex) {
+                verdicts.add(new JudgeVerdict(secondary.name(), 0, List.of(), List.of(), 0,
+                        "Judge " + secondary.name() + " failed: " + ex.getMessage(), "建议人工复核"));
+            }
         }
         if (verdicts.isEmpty()) {
             throw new IllegalStateException("No judge configured");
         }
+        boolean hasFallback = verdicts.stream().anyMatch(v -> v.score() == 0 && v.coveredIntents().isEmpty());
         boolean disagreement = hasDisagreement(verdicts);
         double averageScore = verdicts.stream().mapToInt(JudgeVerdict::score).average().orElse(0);
         double averageNoise = verdicts.stream().mapToDouble(JudgeVerdict::noiseRatio).average().orElse(0);
@@ -138,7 +149,7 @@ public class EvaluationService {
                 ? "召回内容覆盖全部子意图。"
                 : "缺失子意图：" + String.join("、", missing) + "。";
         String suggestion = verdicts.getFirst().suggestion();
-        boolean needsReview = disagreement || evaluationCase.labelStatus() == LabelStatus.MODEL_PROPOSED
+        boolean needsReview = disagreement || hasFallback || evaluationCase.labelStatus() == LabelStatus.MODEL_PROPOSED
                 || evaluationCase.labelStatus() == LabelStatus.NEEDS_REVIEW;
         return new AiAnalysis(
                 (int) Math.round(averageScore),
