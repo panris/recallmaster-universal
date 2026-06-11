@@ -70,7 +70,8 @@ public class EvaluationService {
     }
 
     private RetrievalMetrics metrics(EvaluationCase evaluationCase, List<SearchResult> retrieved, int topK) {
-        Set<String> retrievedIds = new LinkedHashSet<>(retrieved.stream().map(SearchResult::id).toList());
+        Set<String> expectedSet = new LinkedHashSet<>(evaluationCase.expectedIds());
+        List<String> retrievedIds = retrieved.stream().map(SearchResult::id).toList();
         List<String> hitIds = new ArrayList<>();
         List<String> missIds = new ArrayList<>();
         for (String expected : evaluationCase.expectedIds()) {
@@ -80,10 +81,31 @@ public class EvaluationService {
                 missIds.add(expected);
             }
         }
-        double recall = evaluationCase.expectedIds().isEmpty()
-                ? 0
-                : (double) hitIds.size() / evaluationCase.expectedIds().size();
-        return new RetrievalMetrics(hitIds, missIds, recall, topK);
+        double recall = expectedSet.isEmpty() ? 0 : (double) hitIds.size() / expectedSet.size();
+        double hitRate = expectedSet.isEmpty() ? 0 : hitIds.size() > 0 ? 1.0 : 0.0;
+        double precisionAtK = retrievedIds.isEmpty() ? 0 : (double) hitIds.size() / topK;
+        // MRR: first rank position of any expected ID in retrieved list
+        double mrr = 0;
+        for (int i = 0; i < retrievedIds.size(); i++) {
+            if (expectedSet.contains(retrievedIds.get(i))) {
+                mrr = 1.0 / (i + 1);
+                break;
+            }
+        }
+        // nDCG: normalized discounted cumulative gain
+        double dcg = 0;
+        for (int i = 0; i < retrievedIds.size(); i++) {
+            if (expectedSet.contains(retrievedIds.get(i))) {
+                dcg += 1.0 / log2(i + 2); // log2(rank+1), rank is 1-based
+            }
+        }
+        double idealDcg = 0;
+        int idealCount = Math.min(expectedSet.size(), topK);
+        for (int i = 0; i < idealCount; i++) {
+            idealDcg += 1.0 / log2(i + 2);
+        }
+        double ndcg = idealDcg == 0 ? 0 : dcg / idealDcg;
+        return new RetrievalMetrics(hitIds, missIds, recall, hitRate, precisionAtK, mrr, ndcg, topK);
     }
 
     private AiAnalysis analyze(EvaluationCase evaluationCase, List<SearchResult> retrieved) {
@@ -146,6 +168,10 @@ public class EvaluationService {
             }
         }
         return false;
+    }
+
+    private double log2(double x) {
+        return Math.log(x) / Math.log(2);
     }
 
     private EvaluationStatus status(RetrievalMetrics metrics) {

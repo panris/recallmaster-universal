@@ -142,7 +142,7 @@ public class EvaluationRunService implements EvaluationRunLookup {
                 cr.expectedIds() != null && !cr.expectedIds().isBlank() ? List.of(cr.expectedIds().split(",")) : List.of(),
                 Map.of(), null);
         var rm = new com.recallmaster.universal.model.RetrievalMetrics(
-                List.of(), List.of(), cr.recallRate(), 0);
+                List.of(), List.of(), cr.recallRate(), 0, 0, 0, 0, 0);
         var ai = new com.recallmaster.universal.model.AiAnalysis(
                 0, cr.intentCoverage(), cr.noiseRatio(), cr.needsHumanReview(), false,
                 cr.summary() != null ? cr.summary() : "", "", List.of());

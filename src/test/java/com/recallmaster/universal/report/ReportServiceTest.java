@@ -63,7 +63,7 @@ class ReportServiceTest {
         return new CaseResult(
                 evaluationCase,
                 "demo-memory",
-                new RetrievalMetrics(hitIds, missIds, recall, 5),
+                new RetrievalMetrics(hitIds, missIds, recall, 1.0, 0.2, 0.5, 0.3, 5),
                 analysis,
                 List.of(new SearchResult("doc_1", "text", 1.0, Map.of())),
                 status,
