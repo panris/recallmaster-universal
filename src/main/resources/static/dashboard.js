@@ -284,6 +284,20 @@ async function compare(baselineId, candidateId) {
   }
   const comparison = await fetchJson(`/api/runs/${baselineId}/compare/${candidateId}`);
   compareResult.textContent = JSON.stringify(comparison, null, 2);
+  const detail = document.querySelector("#compareDetail");
+  detail.innerHTML = "";
+  const metrics = comparison.metricDeltas ?? comparison;
+  if (Array.isArray(metrics)) {
+    for (const m of metrics) {
+      const row = document.createElement("div");
+      row.className = "compare-row";
+      const delta = m.delta ?? 0;
+      const cls = delta > 0 ? "positive" : delta < 0 ? "negative" : "neutral";
+      row.innerHTML = `<span>${m.question ?? m.metric ?? ""}</span>
+        <span class="${cls}">${delta > 0 ? "+" : ""}${(delta * 100).toFixed(1)}%</span>`;
+      detail.appendChild(row);
+    }
+  }
 }
 
 function summarize(run) {
