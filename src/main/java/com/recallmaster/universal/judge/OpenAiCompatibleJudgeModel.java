@@ -1,32 +1,23 @@
 package com.recallmaster.universal.judge;
 
+import com.recallmaster.universal.connector.HttpJsonClient;
 import com.recallmaster.universal.model.EvaluationCase;
 import com.recallmaster.universal.model.JudgeVerdict;
 import com.recallmaster.universal.model.SearchResult;
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import com.fasterxml.jackson.core.JacksonException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class OpenAiCompatibleJudgeModel implements JudgeModel {
-
-    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
-    };
 
     private final String name;
     private final String model;
     private final String baseUrl;
     private final String apiKey;
     private final ObjectMapper objectMapper;
-    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final HttpJsonClient httpJsonClient;
 
     public OpenAiCompatibleJudgeModel(String name, String model, String baseUrl, String apiKey, ObjectMapper objectMapper) {
         this.name = name;
@@ -34,6 +25,7 @@ public class OpenAiCompatibleJudgeModel implements JudgeModel {
         this.baseUrl = baseUrl;
         this.apiKey = apiKey;
         this.objectMapper = objectMapper;
+        this.httpJsonClient = new HttpJsonClient(objectMapper);
     }
 
     @Override
@@ -56,25 +48,14 @@ public class OpenAiCompatibleJudgeModel implements JudgeModel {
                         Map.of("role", "user", "content", userPrompt(evaluationCase, retrieved))
                 ));
         try {
-            HttpRequest.Builder request = HttpRequest.newBuilder()
-                    .uri(URI.create(trimTrailingSlash(baseUrl) + "/chat/completions"))
-                    .timeout(Duration.ofSeconds(90))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)));
-            if (apiKey != null && !apiKey.isBlank()) {
-                request.header("Authorization", "Bearer " + apiKey);
-            }
-            HttpResponse<String> response = httpClient.send(request.build(), HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() >= 300) {
-                throw new IllegalStateException("Judge " + name + " returned HTTP " + response.statusCode() + ": " + response.body());
-            }
-            Map<String, Object> parsed = objectMapper.readValue(response.body(), MAP_TYPE);
+            Map<String, Object> parsed = httpJsonClient.postJson(trimTrailingSlash(baseUrl) + "/chat/completions", body, apiKey);
             List<Map<String, Object>> choices = (List<Map<String, Object>>) parsed.getOrDefault("choices", List.of());
             if (choices.isEmpty()) {
                 throw new IllegalStateException("Judge " + name + " returned no choices");
             }
             Map<String, Object> message = (Map<String, Object>) choices.getFirst().get("message");
-            Map<String, Object> verdict = objectMapper.readValue(String.valueOf(message.get("content")), MAP_TYPE);
+            Map<String, Object> verdict = objectMapper.readValue(String.valueOf(message.get("content")),
+                    objectMapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, Object.class));
             return new JudgeVerdict(
                     name,
                     number(verdict.get("score"), 0).intValue(),
@@ -85,11 +66,8 @@ public class OpenAiCompatibleJudgeModel implements JudgeModel {
                     String.valueOf(verdict.getOrDefault("suggestion", "")));
         } catch (JacksonException ex) {
             throw new IllegalStateException("Judge " + name + " returned invalid JSON", ex);
-        } catch (IOException ex) {
+        } catch (Exception ex) {
             throw new IllegalStateException("Failed to call judge " + name, ex);
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while calling judge " + name, ex);
         }
     }
 
