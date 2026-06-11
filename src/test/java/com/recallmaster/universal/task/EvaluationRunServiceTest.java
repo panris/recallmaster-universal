@@ -16,14 +16,28 @@ import com.recallmaster.universal.model.EvaluationStatus;
 import com.recallmaster.universal.model.EvaluationRun;
 import com.recallmaster.universal.model.LabelStatus;
 import com.recallmaster.universal.model.RunStatus;
+import com.recallmaster.universal.repository.RunRepository;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 class EvaluationRunServiceTest {
 
     private static final List<ConnectorFactory> FACTORIES = List.of(new InMemoryConnectorFactory());
+
+    private static final RunRepository NOOP_REPO = new RunRepository(null) {
+        @Override public void saveRun(String id, String database, int topK, com.recallmaster.universal.model.RunStatus status,
+                int total, int completed, int errorCount, java.time.Instant createdAt, java.time.Instant finishedAt) {}
+        @Override public Optional<RunRepository.RunRow> findRun(String id) { return Optional.empty(); }
+        @Override public List<RunRepository.RunRow> listRuns(int limit) { return List.of(); }
+        @Override public void saveCaseResult(String id, String runId, String caseId, String question,
+                String status, double recallRate, double intentCoverage, double noiseRatio,
+                boolean needsHumanReview, String summary, String intents, String expectedIds,
+                String actualIds, String errorMessage, java.time.Instant createdAt) {}
+        @Override public List<RunRepository.CaseResultRow> findCaseResultsByRunId(String runId) { return List.of(); }
+    };
 
     @Test
     void singleCaseFailureDoesNotCrashRun() throws InterruptedException {
@@ -33,7 +47,7 @@ class EvaluationRunServiceTest {
         ConnectorRegistry connectorRegistry = new ConnectorRegistry(properties, FACTORIES, provider, new ObjectMapper());
         JudgeRegistry judgeRegistry = new JudgeRegistry(new RuleBasedJudgeModel(), properties, new ObjectMapper());
         EvaluationService evalService = new EvaluationService(connectorRegistry, embedding, judgeRegistry, properties);
-        EvaluationRunService runService = new EvaluationRunService(evalService, connectorRegistry, properties);
+        EvaluationRunService runService = new EvaluationRunService(evalService, connectorRegistry, properties, NOOP_REPO);
 
         // One valid case + one case targeting non-existent connector via eval (will throw in evaluate)
         // Actually we can't easily force a single case to fail without modifying eval service.
@@ -65,7 +79,7 @@ class EvaluationRunServiceTest {
         ConnectorRegistry connectorRegistry = new ConnectorRegistry(properties, FACTORIES, provider, new ObjectMapper());
         JudgeRegistry judgeRegistry = new JudgeRegistry(new RuleBasedJudgeModel(), properties, new ObjectMapper());
         EvaluationService evalService = new EvaluationService(connectorRegistry, embedding, judgeRegistry, properties);
-        EvaluationRunService runService = new EvaluationRunService(evalService, connectorRegistry, properties);
+        EvaluationRunService runService = new EvaluationRunService(evalService, connectorRegistry, properties, NOOP_REPO);
 
         // Start a run against a non-existent database - should fail
         EvaluationCase badCase = new EvaluationCase(

@@ -99,6 +99,22 @@ public class EvaluationRun {
         return results.size();
     }
 
+    public int getErrorCount() {
+        return (int) results.stream().filter(r -> r.status() == EvaluationStatus.ERROR).count();
+    }
+
+    public void setStatus(RunStatus status) {
+        this.status = status;
+    }
+
+    public Instant getFinishedAt() {
+        return updatedAt;
+    }
+
+    public void setFinishedAt(Instant finishedAt) {
+        this.updatedAt = finishedAt;
+    }
+
     public synchronized List<CaseResult> getResults() {
         return List.copyOf(results);
     }
