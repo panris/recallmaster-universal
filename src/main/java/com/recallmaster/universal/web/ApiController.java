@@ -171,6 +171,16 @@ public class ApiController {
                 .body(reportService.exportCsv(id));
     }
 
+    @GetMapping(value = "/runs/{id}/report.md", produces = "text/markdown")
+    public ResponseEntity<String> exportMarkdown(@PathVariable String id) {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename("recallmaster-run-" + id + ".md")
+                        .build()
+                        .toString())
+                .body(reportService.exportMarkdown(id));
+    }
+
     @GetMapping(value = "/runs/{id}/cases.json", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> exportCases(@PathVariable String id) {
         List<EvaluationCase> cases = evaluationRunService.get(id).getResults().stream()

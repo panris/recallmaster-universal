@@ -131,6 +131,45 @@ public class ReportService {
         return csv.toString();
     }
 
+    public String exportMarkdown(String runId) {
+        EvaluationRun run = evaluationRunLookup.get(runId);
+        RunSummary sum = summary(runId);
+        StringBuilder md = new StringBuilder();
+        md.append("# 评测报告: Run " + runId + "\n\n");
+        md.append("| 指标 | 值 |\n|------|----|\n");
+        md.append("| 数据库 | " + run.getDatabase() + " |\n");
+        md.append("| TopK | " + run.getTopK() + " |\n");
+        md.append("| Case 数量 | " + run.getTotal() + " |\n");
+        md.append("| Avg Recall | " + fmt(sum.averageRecall()) + " |\n");
+        md.append("| Avg Intent Coverage | " + fmt(sum.averageIntentCoverage()) + " |\n");
+        md.append("| Avg Noise Ratio | " + fmt(sum.averageNoiseRatio()) + " |\n");
+        md.append("| Full Recall | " + sum.fullRecall() + " |\n");
+        md.append("| Partial Recall | " + sum.partialRecall() + " |\n");
+        md.append("| Miss | " + sum.missed() + " |\n");
+        md.append("| Needs Review | " + sum.needsHumanReview() + " |\n\n");
+        md.append("## 各 Case 详情\n\n");
+        md.append("| Case ID | 问题 | 状态 | Recall | Intent | Noise | Review |\n");
+        md.append("|---------|------|------|--------|--------|-------|--------|\n");
+        for (CaseResult r : run.getResults()) {
+            md.append("| " + r.caseInfo().id() + " | " + r.caseInfo().question() + " | " + r.status() + " | "
+                    + fmt(r.retrievalMetrics().recallRate()) + " | " + fmt(r.aiAnalysis().intentCoverage()) + " | "
+                    + fmt(r.aiAnalysis().noiseRatio()) + " | " + (r.aiAnalysis().needsHumanReview() ? "是" : "否") + " |\n");
+        }
+        md.append("\n## 常见缺失意图\n\n");
+        for (var e : sum.missingIntentCounts().entrySet()) {
+            md.append("- **" + e.getKey() + "**: 出现 " + e.getValue() + " 次\n");
+        }
+        md.append("\n## 建议\n\n");
+        for (String s : sum.suggestions()) {
+            md.append("- " + s + "\n");
+        }
+        return md.toString();
+    }
+
+    private String fmt(double v) {
+        return String.format("%.1f%%", v * 100);
+    }
+
     private int count(List<CaseResult> results, EvaluationStatus status) {
         return (int) results.stream().filter(result -> result.status() == status).count();
     }
