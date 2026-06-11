@@ -33,6 +33,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -87,7 +88,7 @@ public class ApiController {
     }
 
     @PostMapping("/cases/generate")
-    public GeneratedCaseSet generateCases(@RequestBody CaseGenerationRequest request) {
+    public GeneratedCaseSet generateCases(@jakarta.validation.Valid @RequestBody CaseGenerationRequest request) {
         return caseGeneratorService.generate(request);
     }
 
@@ -97,7 +98,7 @@ public class ApiController {
     }
 
     @PostMapping("/runs")
-    public EvaluationRun startRun(@RequestBody EvaluationRunRequest request) {
+    public EvaluationRun startRun(@jakarta.validation.Valid @RequestBody EvaluationRunRequest request) {
         return evaluationRunService.start(request);
     }
 
