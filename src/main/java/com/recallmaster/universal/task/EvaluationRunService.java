@@ -7,6 +7,7 @@ import com.recallmaster.universal.model.CaseResult;
 import com.recallmaster.universal.model.EvaluationCase;
 import com.recallmaster.universal.model.EvaluationStatus;
 import com.recallmaster.universal.model.EvaluationRun;
+import jakarta.annotation.PreDestroy;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -37,6 +38,11 @@ public class EvaluationRunService implements EvaluationRunLookup {
         this.connectorRegistry = connectorRegistry;
         this.properties = properties;
         this.executorService = Executors.newFixedThreadPool(properties.getEvaluator().getConcurrency());
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        executorService.shutdownNow();
     }
 
     public EvaluationRun start(EvaluationRunRequest request) {
