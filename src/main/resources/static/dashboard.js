@@ -116,7 +116,7 @@ async function watchRun(id, writeSingle = false) {
     if (writeSingle) {
       singleResult.textContent = JSON.stringify(run.results?.[0] ?? run, null, 2);
     }
-    if (run.status === "COMPLETED" || run.status === "FAILED") {
+    if (run.status === "COMPLETED" || run.status === "COMPLETED_WITH_ERRORS" || run.status === "FAILED") {
       clearInterval(timer);
     }
   }, 900);

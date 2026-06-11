@@ -125,7 +125,7 @@ public class ApiController {
                     }
                     sent = events.size();
                     emitter.send(SseEmitter.event().name("status").data(run.getStatus().name()));
-                    if (run.getStatus().name().equals("COMPLETED") || run.getStatus().name().equals("FAILED")) {
+                    if (run.getStatus().name().equals("COMPLETED") || run.getStatus().name().equals("COMPLETED_WITH_ERRORS") || run.getStatus().name().equals("FAILED")) {
                         emitter.complete();
                         break;
                     }

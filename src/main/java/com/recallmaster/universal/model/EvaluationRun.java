@@ -32,6 +32,11 @@ public class EvaluationRun {
         touch();
     }
 
+    public synchronized void markCompletedWithErrors() {
+        this.status = RunStatus.COMPLETED_WITH_ERRORS;
+        touch();
+    }
+
     public synchronized void markCompleted() {
         this.status = RunStatus.COMPLETED;
         touch();
