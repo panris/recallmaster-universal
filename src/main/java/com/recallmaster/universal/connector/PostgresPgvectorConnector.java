@@ -4,8 +4,8 @@ import com.recallmaster.universal.config.RecallMasterProperties;
 import com.recallmaster.universal.model.DocumentChunk;
 import com.recallmaster.universal.model.SearchRequest;
 import com.recallmaster.universal.model.SearchResult;
+import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -18,9 +18,16 @@ import java.util.StringJoiner;
 public class PostgresPgvectorConnector implements VectorStoreConnector {
 
     private final RecallMasterProperties.Database database;
+    private final HikariDataSource dataSource;
 
     public PostgresPgvectorConnector(RecallMasterProperties.Database database) {
         this.database = database;
+        HikariDataSource ds = new HikariDataSource();
+        ds.setJdbcUrl(database.getConnection());
+        ds.setMaximumPoolSize(5);
+        ds.setMinimumIdle(1);
+        ds.setPoolName("pg-" + database.getName());
+        this.dataSource = ds;
     }
 
     @Override
@@ -44,7 +51,7 @@ public class PostgresPgvectorConnector implements VectorStoreConnector {
             throw new IllegalStateException("PostgreSQL connector requires connection and table");
         }
         String sql = buildSql(request.filters());
-        try (Connection connection = DriverManager.getConnection(database.getConnection());
+        try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             int index = 1;
             String pgVector = toPgVector(request.queryVector());
@@ -57,11 +64,13 @@ public class PostgresPgvectorConnector implements VectorStoreConnector {
             try (ResultSet rs = statement.executeQuery()) {
                 List<SearchResult> results = new ArrayList<>();
                 while (rs.next()) {
+                    String metaJson = rs.getString("metadata");
+                    Map<String, String> metadata = parseMetadata(metaJson);
                     results.add(new SearchResult(
                             rs.getString("id"),
                             rs.getString("text"),
                             rs.getDouble("score"),
-                            Map.of()));
+                            metadata));
                 }
                 return results;
             }
@@ -70,6 +79,60 @@ public class PostgresPgvectorConnector implements VectorStoreConnector {
         }
     }
 
+    @Override
+    public void upsert(Collection<DocumentChunk> chunks) {
+        if (!isAvailable()) {
+            throw new IllegalStateException("PostgreSQL connector requires connection and table");
+        }
+        if (chunks.isEmpty()) {
+            return;
+        }
+        String sql = buildUpsertSql();
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            for (DocumentChunk chunk : chunks) {
+                int index = 1;
+                statement.setString(index++, chunk.id());
+                statement.setString(index++, chunk.text());
+                statement.setString(index++, toPgVector(chunk.vector()));
+                statement.setString(index, toJson(chunk.metadata()));
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        } catch (SQLException ex) {
+            throw new IllegalStateException("PostgreSQL pgvector upsert failed for " + name(), ex);
+        }
+    }
+
+    public void close() {
+        if (dataSource != null && !dataSource.isClosed()) {
+            dataSource.close();
+        }
+    }
+
+    private Map<String, String> parseMetadata(String json) {
+        if (json == null || json.isBlank() || json.equals("{}")) {
+            return Map.of();
+        }
+        Map<String, String> map = new java.util.LinkedHashMap<>();
+        // Simple JSON key:value parser for flat metadata
+        json = json.trim();
+        if (json.startsWith("{") && json.endsWith("}")) {
+            json = json.substring(1, json.length() - 1);
+        }
+        String[] pairs = json.split(",");
+        for (String pair : pairs) {
+            String[] kv = pair.split(":");
+            if (kv.length == 2) {
+                String key = kv[0].trim().replace("\"", "");
+                String value = kv[1].trim().replace("\"", "");
+                map.put(key, value);
+            }
+        }
+        return Map.copyOf(map);
+    }
+
+    // ... rest of private methods unchanged
     private String buildSql(Map<String, String> filters) {
         String distance = switch (database.getMetric().toLowerCase()) {
             case "l2", "euclidean" -> "<->";
@@ -81,7 +144,8 @@ public class PostgresPgvectorConnector implements VectorStoreConnector {
                 .append(quote(database.getIdCol())).append("::text as id, ")
                 .append(quote(database.getTextCol())).append("::text as text, ")
                 .append("1 - (").append(quote(database.getVectorCol())).append(" ")
-                .append(distance).append(" ?::vector) as score from ")
+                .append(distance).append(" ?::vector) as score, ")
+                .append(quote(database.getMetadataCol())).append("::text as metadata from ")
                 .append(qualified(database.getTable()));
         if (!filters.isEmpty()) {
             StringJoiner where = new StringJoiner(" and ");
@@ -117,31 +181,6 @@ public class PostgresPgvectorConnector implements VectorStoreConnector {
             joiner.add(quote(part));
         }
         return joiner.toString();
-    }
-
-    @Override
-    public void upsert(Collection<DocumentChunk> chunks) {
-        if (!isAvailable()) {
-            throw new IllegalStateException("PostgreSQL connector requires connection and table");
-        }
-        if (chunks.isEmpty()) {
-            return;
-        }
-        String sql = buildUpsertSql();
-        try (Connection connection = DriverManager.getConnection(database.getConnection());
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            for (DocumentChunk chunk : chunks) {
-                int index = 1;
-                statement.setString(index++, chunk.id());
-                statement.setString(index++, chunk.text());
-                statement.setString(index++, toPgVector(chunk.vector()));
-                statement.setString(index, toJson(chunk.metadata()));
-                statement.addBatch();
-            }
-            statement.executeBatch();
-        } catch (SQLException ex) {
-            throw new IllegalStateException("PostgreSQL pgvector upsert failed for " + name(), ex);
-        }
     }
 
     private String buildUpsertSql() {
