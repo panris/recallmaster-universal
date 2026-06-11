@@ -81,7 +81,7 @@ public class ApiController {
                     if (completed.get()) break;
                     emitter.send(SseEmitter.event().name("status").data(run.getStatus().name()));
                     String status = run.getStatus().name();
-                    if (status.equals("COMPLETED") || status.equals("COMPLETED_WITH_ERRORS") || status.equals("FAILED")) {
+                    if (status.equals("COMPLETED") || status.equals("COMPLETED_WITH_ERRORS") || status.equals("FAILED") || status.equals("CANCELLED")) {
                         emitter.complete();
                         break;
                     }
@@ -112,6 +112,20 @@ public class ApiController {
     @GetMapping("/{baselineId}/compare/{candidateId}")
     public RunComparison compareRuns(@PathVariable String baselineId, @PathVariable String candidateId) {
         return reportService.compare(baselineId, candidateId);
+    }
+
+    @PostMapping("/{id}/cancel")
+    public EvaluationRun cancelRun(@PathVariable String id) {
+        EvaluationRun run = evaluationRunService.get(id);
+        if (run == null) throw new IllegalArgumentException("Run not found: " + id);
+        run.cancel();
+        evaluationRunService.saveRun(run);
+        return run;
+    }
+
+    @PostMapping("/{id}/retry-failed")
+    public EvaluationRun retryFailed(@PathVariable String id) {
+        return evaluationRunService.retryFailed(id);
     }
 
     @GetMapping(value = "/{id}/report.csv", produces = "text/csv")

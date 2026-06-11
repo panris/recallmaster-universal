@@ -68,6 +68,18 @@ public class EvaluationRunService implements EvaluationRunLookup {
         }
     }
 
+    public EvaluationRun retryFailed(String id) {
+        EvaluationRun original = runs.get(id);
+        if (original == null) throw new IllegalArgumentException("Run not found: " + id);
+        List<EvaluationCase> failedCases = original.getResults().stream()
+                .filter(r -> r.status() == EvaluationStatus.ERROR)
+                .map(CaseResult::caseInfo)
+                .toList();
+        if (failedCases.isEmpty()) return original;
+        EvaluationRunRequest request = new EvaluationRunRequest(original.getDatabase(), original.getTopK(), failedCases);
+        return start(request);
+    }
+
     @PreDestroy
     public void shutdown() {
         executorService.shutdownNow();
@@ -110,14 +122,13 @@ public class EvaluationRunService implements EvaluationRunLookup {
                 .map(evaluationCase -> CompletableFuture
                         .supplyAsync(() -> safeEvaluateOne(run, evaluationCase), executorService)
                         .thenAccept(run::addResult))
-                .toList();
+                        .toList();
         try {
             CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
         } catch (CompletionException ex) {
-            // Should not happen since safeEvaluateOne catches exceptions,
-            // but handle defensively
             run.addEvent("run:unexpected-error:" + ex.getMessage());
         }
+        if (run.isCancelled()) return;
 
         long errorCount = run.getResults().stream()
                 .filter(r -> r.status() == EvaluationStatus.ERROR)
@@ -152,6 +163,10 @@ public class EvaluationRunService implements EvaluationRunLookup {
         return new CaseResult(evalCase, "", rm, ai,
                 List.of(),
                 EvaluationStatus.valueOf(cr.status()), cr.createdAt());
+    }
+
+    public void saveRun(EvaluationRun run) {
+        persistRun(run);
     }
 
     private void persistRun(EvaluationRun run) {
@@ -190,6 +205,9 @@ public class EvaluationRunService implements EvaluationRunLookup {
     }
 
     private CaseResult safeEvaluateOne(EvaluationRun run, EvaluationCase evaluationCase) {
+        if (run.isCancelled()) {
+            return new CaseResult(evaluationCase, run.getDatabase(), null, null, List.of(), EvaluationStatus.ERROR, Instant.now());
+        }
         try {
             concurrencySemaphore.acquire();
         } catch (InterruptedException e) {

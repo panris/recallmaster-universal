@@ -5,5 +5,6 @@ public enum RunStatus {
     RUNNING,
     COMPLETED,
     COMPLETED_WITH_ERRORS,
-    FAILED
+    FAILED,
+    CANCELLED
 }

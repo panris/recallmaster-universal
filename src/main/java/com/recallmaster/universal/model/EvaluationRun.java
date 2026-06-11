@@ -48,6 +48,27 @@ public class EvaluationRun {
         touch();
     }
 
+    public synchronized void cancel() {
+        if (this.status == RunStatus.RUNNING || this.status == RunStatus.QUEUED) {
+            this.status = RunStatus.CANCELLED;
+            touch();
+        }
+    }
+
+    private volatile boolean cancelled = false;
+
+    public synchronized boolean isCancelled() {
+        return cancelled;
+    }
+
+    public synchronized void setCancelled(boolean cancelled) {
+        this.cancelled = cancelled;
+        if (cancelled) {
+            this.status = RunStatus.CANCELLED;
+            touch();
+        }
+    }
+
     public synchronized void addResult(CaseResult result) {
         this.results.add(result);
         this.events.add("case:" + result.caseInfo().id() + ":" + result.status());
