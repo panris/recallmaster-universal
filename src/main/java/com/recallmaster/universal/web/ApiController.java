@@ -115,6 +115,9 @@ public class ApiController {
     @GetMapping(value = "/runs/{id}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamRun(@PathVariable String id) {
         SseEmitter emitter = new SseEmitter(0L);
+        emitter.onCompletion(() -> {});
+        emitter.onTimeout(() -> emitter.complete());
+        emitter.onError(ex -> emitter.complete());
         Thread.startVirtualThread(() -> {
             int sent = 0;
             try {
