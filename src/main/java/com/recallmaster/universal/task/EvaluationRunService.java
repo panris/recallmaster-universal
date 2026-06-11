@@ -21,6 +21,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -31,6 +32,7 @@ public class EvaluationRunService implements EvaluationRunLookup {
     private final RecallMasterProperties properties;
     private final RunRepository runRepository;
     private final ExecutorService executorService;
+    private final Semaphore concurrencySemaphore;
     private final Map<String, EvaluationRun> runs = new ConcurrentHashMap<>();
 
     public EvaluationRunService(
@@ -44,6 +46,7 @@ public class EvaluationRunService implements EvaluationRunLookup {
         this.properties = properties;
         this.runRepository = runRepository;
         this.executorService = Executors.newFixedThreadPool(properties.getEvaluator().getConcurrency());
+        this.concurrencySemaphore = new Semaphore(properties.getEvaluator().getConcurrency());
     }
 
     @PostConstruct
@@ -188,19 +191,18 @@ public class EvaluationRunService implements EvaluationRunLookup {
 
     private CaseResult safeEvaluateOne(EvaluationRun run, EvaluationCase evaluationCase) {
         try {
+            concurrencySemaphore.acquire();
+        } catch (InterruptedException e) {
+            return new CaseResult(evaluationCase, run.getDatabase(), null, null, List.of(), EvaluationStatus.ERROR, Instant.now());
+        }
+        try {
             run.addEvent("case:started:" + evaluationCase.id());
             return evaluationService.evaluate(run.getDatabase(), evaluationCase, run.getTopK());
         } catch (Exception ex) {
             run.addEvent("case:error:" + evaluationCase.id() + ":" + ex.getMessage());
-            return new CaseResult(
-                    evaluationCase,
-                    run.getDatabase(),
-                    null,
-                    null,
-                    List.of(),
-                    EvaluationStatus.ERROR,
-                    Instant.now()
-            );
+            return new CaseResult(evaluationCase, run.getDatabase(), null, null, List.of(), EvaluationStatus.ERROR, Instant.now());
+        } finally {
+            concurrencySemaphore.release();
         }
     }
 }
