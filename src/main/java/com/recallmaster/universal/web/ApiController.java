@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -181,5 +182,14 @@ public class ApiController {
                         .build()
                         .toString())
                 .body(caseImportService.exportJson(cases));
+    }
+
+    @GetMapping("/examples")
+    public ResponseEntity<String> getExampleCases() throws IOException {
+        ClassPathResource resource = new ClassPathResource("examples/cases.json");
+        String cases = new String(resource.getInputStream().readAllBytes());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .body(cases);
     }
 }

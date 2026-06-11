@@ -7,6 +7,44 @@
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+<!-- 首次访问引导卡片 -->
+<div id="onboarding-card" class="onboarding-card" style="display: none;">
+    <div class="onboarding-content">
+        <div class="onboarding-header">
+            <h2>欢迎使用 RecallMaster</h2>
+            <button id="closeOnboarding" class="close-btn">&times;</button>
+        </div>
+        <p class="onboarding-desc">通用 RAG 召回率评测平台，评估你的向量数据库检索质量。</p>
+        <div class="onboarding-steps">
+            <div class="step">
+                <span class="step-num">1</span>
+                <div>
+                    <strong>运行 Demo</strong>
+                    <p>点击右上角"运行 Demo"按钮，体验完整评测流程</p>
+                </div>
+            </div>
+            <div class="step">
+                <span class="step-num">2</span>
+                <div>
+                    <strong>查看结果</strong>
+                    <p>绿色=命中，红色=漏召，点击格子查看详情</p>
+                </div>
+            </div>
+            <div class="step">
+                <span class="step-num">3</span>
+                <div>
+                    <strong>开始评测</strong>
+                    <p>导入 Case JSON 或从文档生成测试用例</p>
+                </div>
+            </div>
+        </div>
+        <div class="onboarding-tip">
+            <span class="tip-icon">💡</span>
+            <span><strong>提示</strong>: Demo 使用 Hash Embedding，适合功能验证。正式评测请切换到真实 Embedding 模型。</span>
+        </div>
+    </div>
+</div>
+
 <main class="layout">
     <header class="topbar">
         <div>
@@ -65,7 +103,10 @@
             <label>或直接粘贴 JSON
                 <textarea name="caseJson" placeholder='[{"question":"..."}]'></textarea>
             </label>
-            <button type="submit">导入并校验</button>
+            <div class="import-actions">
+                <button type="submit">导入并校验</button>
+                <button type="button" id="loadExampleCases" class="secondary">加载示例 Cases</button>
+            </div>
         </form>
         <pre id="importResult"></pre>
     </section>

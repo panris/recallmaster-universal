@@ -2,6 +2,8 @@
 
 Vendor-agnostic RAG retrieval recall evaluator implemented in Java.
 
+> **零配置体验**: 默认 Demo 无需任何外部依赖（无数据库、无 LLM Key），一行命令即可运行。
+
 ## What It Does
 
 - Runs retrieval-only evaluation against a unified vector-store interface: `search(query, topK, filters)`.
@@ -13,18 +15,30 @@ Vendor-agnostic RAG retrieval recall evaluator implemented in Java.
 - Generates candidate cases from PDF, Markdown, and TXT documents.
 - Provides REST APIs plus a lightweight dashboard with live task progress and single-case replay.
 
-## Quick Start
+## Quick Start (5 Minutes)
 
 ```bash
+# 1. 克隆项目
+git clone https://github.com/your-org/recallmaster-universal.git
+cd recallmaster-universal
+
+# 2. 一键启动（自动运行测试 + 启动服务）
 mvn test
 mvn spring-boot:run
 ```
 
-Open `http://localhost:8088`.
+**启动后打开**: `http://localhost:8088`
 
-The default config includes a `demo-memory` connector with hash embeddings, so the app can run without external databases or LLM keys.
+### 快速上手 3 步
+
+1. 点击页面右上角 **"运行 Demo"** 按钮，体验完整评测流程
+2. 查看任务看板中的评测结果（绿色=命中，红色=漏召）
+3. 开始你的评测：导入 Case JSON 或从文档生成测试用例
+
+> **提示**: Demo 使用 Hash Embedding，适合功能验证。正式评测请切换到真实 Embedding 模型。
 
 中文使用说明见 [`docs/user-guide-zh.md`](docs/user-guide-zh.md)。
+详细快速上手见 [`docs/quickstart-zh.md`](docs/quickstart-zh.md)。
 
 ## API Examples
 

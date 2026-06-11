@@ -1,5 +1,5 @@
 server:
-  port: 9090
+  port: 8088
 
 spring:
   application:
@@ -41,8 +41,9 @@ recallmaster:
       enabled: true
       dimension: 256
       documents:
+        # 医疗保险文档
         - id: med_dental_limit
-          text: "医疗保险牙科报销年度上限为 2000 元，包含洗牙、补牙和根管治疗。"
+          text: "根据基本医疗保险规定，牙科治疗报销年度上限为2000元，包含洗牙、补牙和根管治疗。"
           metadata:
             source: demo-medical
             topic: dental
@@ -51,16 +52,73 @@ recallmaster:
           metadata:
             source: demo-medical
             topic: dental
+        # 负载均衡文档
         - id: tech_lb_config
-          text: "负载均衡需要配置 upstream 节点、健康检查路径和转发策略。"
+          text: "负载均衡需要配置upstream节点、健康检查路径和转发策略。upstream定义后端服务器列表，健康检查默认间隔30秒。"
           metadata:
             source: demo-tech
             topic: lb
+        # 高可用文档
         - id: tech_ha_heartbeat
-          text: "高可用模式默认心跳间隔为 3 秒，连续 3 次失败后触发主备切换。"
+          text: "高可用模式默认心跳间隔为3秒，连续3次失败后触发主备切换。"
           metadata:
             source: demo-tech
             topic: ha
+        # 云服务器文档
+        - id: cloud_os_support
+          text: "云服务器支持多种操作系统：Ubuntu、CentOS、Debian、Windows Server等，支持按量付费和包年包月两种计费方式。"
+          metadata:
+            source: demo-cloud
+            topic: compute
+        - id: cloud_pricing
+          text: "云服务器计费方式包括按量付费（按秒计费）和包年包月（享受折扣优惠），还有节省计划适合可预测的工作负载。"
+          metadata:
+            source: demo-cloud
+            topic: pricing
+        - id: cloud_scaling
+          text: "云服务器支持在线升级配置，包括CPU核心数、内存大小、数据盘容量，操作系统不支持降级。"
+          metadata:
+            source: demo-cloud
+            topic: scaling
+        # API 文档
+        - id: api_rate_limit
+          text: "API调用频率限制：免费版每分钟60次，专业版600次，企业版6000次，超出限制返回429状态码。"
+          metadata:
+            source: demo-api
+            topic: rate-limit
+        - id: api_quota
+          text: "API配额可申请提升，登录开发者控制台填写业务场景和使用预期，审核周期1-3个工作日。"
+          metadata:
+            source: demo-api
+            topic: quota
+        # 消息队列文档
+        - id: mq开通
+          text: "消息队列服务支持HTTP、AMQP、MQTT、WebSocket协议，可通过控制台快速开通，支持地域选择。"
+          metadata:
+            source: demo-mq
+            topic: queue
+        - id: mq_dlq
+          text: "死信队列（DLQ）用于存放无法正常消费的消息，触发条件包括消费失败超过最大重试次数、消息超过TTL或被显式拒绝。"
+          metadata:
+            source: demo-mq
+            topic: dlq
+        # 对象存储文档
+        - id: oss_pricing
+          text: "对象存储费用由存储容量、请求次数、流量费用组成，标准存储0.12元/GB/月，还有低频存储和归档存储可选。"
+          metadata:
+            source: demo-oss
+            topic: pricing
+        - id: oss_acl
+          text: "对象存储访问权限包括private（仅所有者可读写）、public-read（所有人可读），可通过控制台或API设置ACL。"
+          metadata:
+            source: demo-oss
+            topic: acl
+        # 密钥管理文档
+        - id: kms_key
+          text: "密钥管理服务支持对称密钥（AES-256）和非对称密钥（RSA-2048），支持密钥创建、轮换、权限控制和生命周期管理。"
+          metadata:
+            source: demo-kms
+            topic: key-management
 
 management:
   endpoints:

@@ -7,13 +7,74 @@ const demoCases = [
     labelStatus: "HUMAN_VERIFIED"
   },
   {
-    question: "如何配置负载均衡？高可用模式下心跳间隔是多少？",
-    intents: ["负载均衡配置", "高可用参数"],
-    expectedIds: ["tech_lb_config", "tech_ha_heartbeat"],
+    question: "高可用模式的心跳间隔是多少秒？",
+    intents: ["高可用参数", "心跳间隔"],
+    expectedIds: ["tech_ha_heartbeat"],
+    filters: {},
+    labelStatus: "HUMAN_VERIFIED"
+  },
+  {
+    question: "负载均衡需要配置哪些参数？",
+    intents: ["负载均衡配置"],
+    expectedIds: ["tech_lb_config"],
+    filters: {},
+    labelStatus: "HUMAN_VERIFIED"
+  },
+  {
+    question: "云服务器支持哪些操作系统？有哪些计费方式？",
+    intents: ["操作系统支持", "计费方式"],
+    expectedIds: ["cloud_os_support", "cloud_pricing"],
+    filters: {},
+    labelStatus: "HUMAN_VERIFIED"
+  },
+  {
+    question: "API 调用的频率限制是多少？如何申请提升配额？",
+    intents: ["API限制", "配额管理"],
+    expectedIds: ["api_rate_limit", "api_quota"],
     filters: {},
     labelStatus: "HUMAN_VERIFIED"
   }
 ];
+
+// 首次访问引导
+const ONBOARDING_KEY = "recallmaster_onboarding_shown";
+function initOnboarding() {
+  const card = document.getElementById("onboarding-card");
+  const closeBtn = document.getElementById("closeOnboarding");
+  if (!card) return;
+  if (!localStorage.getItem(ONBOARDING_KEY)) {
+    card.style.display = "flex";
+  }
+  closeBtn.addEventListener("click", () => {
+    card.style.display = "none";
+    localStorage.setItem(ONBOARDING_KEY, "true");
+  });
+  card.addEventListener("click", (e) => {
+    if (e.target === card) {
+      card.style.display = "none";
+      localStorage.setItem(ONBOARDING_KEY, "true");
+    }
+  });
+}
+
+// Demo 警告提示
+function showDemoWarning() {
+  const runsEl = document.querySelector("#runs");
+  const existingWarning = runsEl.querySelector(".demo-warning");
+  if (existingWarning) return;
+
+  const warning = document.createElement("div");
+  warning.className = "demo-warning";
+  warning.innerHTML = `
+    <span style="font-size: 20px;">⚠️</span>
+    <div>
+      <strong>Demo 模式说明</strong>
+      <p>当前使用 Hash Embedding（无语义理解能力），仅适合功能验证。</p>
+      <p>正式评测请配置真实 Embedding 模型（如 OpenAI、BGE、Ollama）。</p>
+    </div>
+  `;
+  runsEl.parentElement.insertBefore(warning, runsEl);
+}
 
 function renderCaseDetail(result) {
   const detail = document.querySelector("#caseDetail");
@@ -42,7 +103,7 @@ function renderCaseDetail(result) {
   // Recall card
   const recallCard = document.createElement("div");
   recallCard.className = "detail-card";
-  recallCard.appendChild(makeH4("召回指标"));
+  recallCard.appendChild(makeH4("召回指标", "评估向量数据库的检索质量"));
   recallCard.appendChild(makeDL([
     ["Recall@K", formatPct(rm.recallRate)],
     ["Hit@K", rm.hitRate != null ? formatPct(rm.hitRate) : "N/A"],
@@ -55,7 +116,7 @@ function renderCaseDetail(result) {
   // Intent card
   const intentCard = document.createElement("div");
   intentCard.className = "detail-card";
-  intentCard.appendChild(makeH4("意图分析"));
+  intentCard.appendChild(makeH4("意图分析", "Judge 分析召回内容的意图覆盖和噪声比例"));
   intentCard.appendChild(makeDL([
     ["意图覆盖", formatPct(ai.intentCoverage)],
     ["噪音比", formatPct(ai.noiseRatio)],
@@ -72,7 +133,7 @@ function renderCaseDetail(result) {
   // ID card
   const idCard = document.createElement("div");
   idCard.className = "detail-card";
-  idCard.appendChild(makeH4("预期 vs 实际"));
+  idCard.appendChild(makeH4("预期 vs 实际", "对比期望召回的文档 ID 和实际召回结果"));
   const idList = document.createElement("div");
   idList.className = "id-list";
   idList.appendChild(makeIdRow("预期 ID:", ci.expectedIds ?? []));
@@ -81,11 +142,22 @@ function renderCaseDetail(result) {
   grid.appendChild(idCard);
 
   detail.appendChild(grid);
+
+  // 行动指引
+  detail.appendChild(makeActionAdvice(result));
 }
 
-function makeH4(text) {
+function makeH4(text, helpText) {
   const h4 = document.createElement("h4");
   h4.textContent = text;
+  if (helpText) {
+    h4.className = "metric-help";
+    h4.textContent = text + " ❓";
+    const tooltip = document.createElement("span");
+    tooltip.className = "tooltip";
+    tooltip.textContent = helpText;
+    h4.appendChild(tooltip);
+  }
   return h4;
 }
 
@@ -116,6 +188,38 @@ function makeIdRow(label, ids) {
   return row;
 }
 
+// 评测结果行动指引
+function makeActionAdvice(result) {
+  const advice = document.createElement("div");
+  advice.className = "action-advice";
+
+  const rm = result.retrievalMetrics ?? {};
+  const recall = rm.recallRate ?? 0;
+  const intentCoverage = result.aiAnalysis?.intentCoverage ?? 0;
+  const noiseRatio = result.aiAnalysis?.noiseRatio ?? 0;
+
+  const suggestions = [];
+
+  if (recall < 0.8) {
+    suggestions.push(`<li><strong>Recall@K 过低 (${Math.round(recall * 100)}%)</strong>：尝试增大 topK，或检查 chunk size 是否合适</li>`);
+  }
+  if (intentCoverage < 0.7) {
+    suggestions.push(`<li><strong>意图覆盖不足 (${Math.round(intentCoverage * 100)}%)</strong>：检查召回内容是否包含完整意图，可尝试改善 chunk 策略</li>`);
+  }
+  if (noiseRatio > 0.3) {
+    suggestions.push(`<li><strong>噪声比例过高 (${Math.round(noiseRatio * 100)}%)</strong>：召回了无关内容，可考虑增加 rerank 或使用更精确的 embedding</li>`);
+  }
+  if (suggestions.length === 0) {
+    suggestions.push("<li>评测结果良好，无需特殊优化</li>");
+  }
+
+  advice.innerHTML = `
+    <h4>💡 优化建议</h4>
+    <ul>${suggestions.join("")}</ul>
+  `;
+  return advice;
+}
+
 function makeStat(label, value) {
   const span = document.createElement("span");
   span.textContent = `${label} `;
@@ -141,6 +245,7 @@ const compareRuns = document.querySelector("#compareRuns");
 const compareResult = document.querySelector("#compareResult");
 const importCases = document.querySelector("#importCases");
 const importResult = document.querySelector("#importResult");
+const loadExampleCases = document.querySelector("#loadExampleCases");
 const singleCase = document.querySelector("#singleCase");
 const singleResult = document.querySelector("#singleResult");
 
@@ -200,6 +305,7 @@ runDemo.addEventListener("click", withLoading(runDemo, async () => {
   const run = await response.json();
   await loadRuns();
   watchRun(run.id);
+  showDemoWarning();
 }));
 
 refresh.addEventListener("click", loadRuns);
@@ -218,6 +324,18 @@ compareRuns.addEventListener("submit", async (event) => {
   const form = new FormData(compareRuns);
   await compare(form.get("baselineId"), form.get("candidateId"));
 });
+
+loadExampleCases.addEventListener("click", withLoading(loadExampleCases, async () => {
+  try {
+    const response = await fetch("/api/runs/examples");
+    if (!response.ok) throw new Error("加载失败");
+    const cases = await response.json();
+    importResult.textContent = `已加载 ${cases.length} 个示例 Cases，可以复制到下方"新建评测"的 Case JSON 中使用。`;
+    document.querySelector('textarea[name="caseJson"]').value = JSON.stringify(cases, null, 2);
+  } catch (e) {
+    importResult.textContent = "加载示例失败: " + e.message;
+  }
+}));
 
 importCases.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -510,3 +628,4 @@ function splitCsv(value) {
 
 loadConnectors();
 loadRuns();
+initOnboarding();

@@ -3,7 +3,7 @@ services:
   app:
     build: .
     ports:
-      - "8080:8080"
+      - "8088:8088"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_OPTS=-Xmx512m
