@@ -126,7 +126,7 @@ newRun.addEventListener("submit", async (event) => {
   }
 });
 
-runDemo.addEventListener("click", async () => {
+runDemo.addEventListener("click", withLoading(runDemo, async () => {
   const response = await fetch("/api/runs", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
@@ -135,18 +135,18 @@ runDemo.addEventListener("click", async () => {
   const run = await response.json();
   await loadRuns();
   watchRun(run.id);
-});
+}));
 
 refresh.addEventListener("click", loadRuns);
-healthCheck.addEventListener("click", loadConnectorHealth);
-compareLatest.addEventListener("click", async () => {
+healthCheck.addEventListener("click", withLoading(healthCheck, loadConnectorHealth));
+compareLatest.addEventListener("click", withLoading(compareLatest, async () => {
   const runs = await fetchJson("/api/runs");
   if (runs.length < 2) {
     compareResult.textContent = "至少需要两次运行结果。";
     return;
   }
   await compare(runs[1].id, runs[0].id);
-});
+}));
 
 compareRuns.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -372,9 +372,36 @@ function summarize(run) {
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
   if (!response.ok) {
-    throw new Error(await response.text());
+    const text = await response.text();
+    throw new Error(text);
   }
   return response.json();
+}
+
+function withLoading(button, fn) {
+  return async (...args) => {
+    const orig = button.textContent;
+    button.disabled = true;
+    button.textContent = "加载中...";
+    try {
+      await fn(...args);
+    } catch (e) {
+      showToast(e.message, "error");
+    } finally {
+      button.disabled = false;
+      button.textContent = orig;
+    }
+  };
+}
+
+function showToast(message, type = "info") {
+  const existing = document.querySelector(".toast");
+  if (existing) existing.remove();
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message.length > 200 ? message.substring(0, 200) + "..." : message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 5000);
 }
 
 function formatPct(value) {
