@@ -27,7 +27,7 @@ class CaseGeneratorServiceTest {
                 return "{\"intents\": [\"牙科保障范围\", \"报销额度\"]}";
             }
         };
-        CaseGeneratorService service = new CaseGeneratorService(new DocumentLoader(), new HashEmbeddingModel(128), mockLlm);
+        CaseGeneratorService service = new CaseGeneratorService(new DocumentLoader(), new HashEmbeddingModel(128), mockLlm, new com.fasterxml.jackson.databind.ObjectMapper());
 
         GeneratedCaseSet generated = service.generate(new CaseGenerationRequest(List.of(source.toString()), 3, false));
 

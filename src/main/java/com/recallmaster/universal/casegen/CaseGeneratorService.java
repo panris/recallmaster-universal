@@ -6,6 +6,7 @@ import com.recallmaster.universal.llm.LlmClient;
 import com.recallmaster.universal.model.DocumentChunk;
 import com.recallmaster.universal.model.EvaluationCase;
 import com.recallmaster.universal.model.LabelStatus;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -21,11 +22,13 @@ public class CaseGeneratorService {
     private final DocumentLoader documentLoader;
     private final EmbeddingModel embeddingModel;
     private final LlmClient llmClient;
+    private final ObjectMapper objectMapper;
 
-    public CaseGeneratorService(DocumentLoader documentLoader, EmbeddingModel embeddingModel, LlmClient llmClient) {
+    public CaseGeneratorService(DocumentLoader documentLoader, EmbeddingModel embeddingModel, LlmClient llmClient, ObjectMapper objectMapper) {
         this.documentLoader = documentLoader;
         this.embeddingModel = embeddingModel;
         this.llmClient = llmClient;
+        this.objectMapper = objectMapper;
     }
 
     public GeneratedCaseSet generate(CaseGenerationRequest request) {
@@ -80,27 +83,19 @@ public class CaseGeneratorService {
 
     private List<String> parseIntentsJson(String json) {
         try {
-            int start = json.indexOf('[');
-            int end = json.lastIndexOf(']');
-            if (start < 0 || end < 0 || end <= start) {
-                return List.of("核心事实", "补充条件");
-            }
-            String arrayContent = json.substring(start + 1, end);
-            List<String> intents = new ArrayList<>();
-            for (String part : arrayContent.split(",")) {
-                String cleaned = part.trim().replace("\"", "").replace("'", "");
-                if (!cleaned.isBlank()) {
-                    intents.add(cleaned);
-                }
-            }
-            if (intents.isEmpty()) {
-                intents.add("核心事实");
-            }
-            if (intents.size() == 1) {
-                intents.add("补充条件");
-            }
-            return intents.stream().distinct().limit(3).toList();
+            return objectMapper.readValue(json, objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
         } catch (Exception e) {
+            // Try to find a JSON array within the response
+            try {
+                int start = json.indexOf('[');
+                int end = json.lastIndexOf(']');
+                if (start >= 0 && end > start) {
+                    return objectMapper.readValue(json.substring(start, end + 1),
+                            objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
+                }
+            } catch (Exception e2) {
+                // Fall through to default
+            }
             return List.of("核心事实", "补充条件");
         }
     }
